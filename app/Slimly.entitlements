@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 硬化執行環境：引擎 Resources/bin/gs、mutool 是自己編的單一執行檔（只連系統函式庫），同一個 Developer ID 簽、不需要例外。
+       主程式只開一條，要加任何一條都先寫理由。 -->
+  <!-- Office 轉 PDF 要請 Pages、Keynote、Numbers、Word、PowerPoint 輸出 PDF（ToolsOffice.swift，Apple Events）：
+       硬化執行環境沒有這條，macOS 不會問就直接擋（-1743）。有了它，第一次會跳系統的詢問（說明在 Info.plist 的 NSAppleEventsUsageDescription）。 -->
+  <key>com.apple.security.automation.apple-events</key>
+  <true/>
+</dict>
+</plist>

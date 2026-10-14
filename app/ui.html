@@ -1,0 +1,1765 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Slimly</title>
+<style>
+  /* ───────────────────────────────────────────────────────────────
+     Slimly 的主視窗。設計語彙＝Fully 2.2（家族同一套，不另起）；造型來源、規矩照抄，改這個檔先讀。
+
+     一個畫面只有一顆主鍵。由上而下三件事：什麼（PDF）→ 做（主鍵）→ 結果（一句話）。
+     其餘（最近壓的、設定、Slimly 能做什麼）各自一頁，平常看不到。
+       什麼＝空的時候是凹槽（等東西放進來，整塊點下去＝選檔案）；有檔是凸起的卡（名稱、頁數、大小）
+       做＝主鍵四態：平（沒檔，不能按）→ 凸（可以按）→ 漣漪＋進度環（壓縮中，按＝停止）→ 壓下去的勾（好了）；失敗＝凸＋重試
+       結果＝大字講前後大小，一兩句小字講存成什麼、畫質怎樣；「目標大小」只在有檔待壓時出現（四顆膠囊）
+       中文／English：data-i18n 的元素整塊換、JS 裡的句子走 tr()
+
+     造型來源（不發明；三顆都是 Uiverse.io／MIT，署名在 THIRD-PARTY-NOTICES）：
+       R1 adamgiebl／strong-zebra-87      大圓角凸起板、寬柔雙向影      ＝可以按：主鍵待命、檔案卡、主要動作鍵
+       R2 Smit-Prajapati／tricky-turtle-16 五層同心漣漪、頂緣高光、0.2s 錯拍 ＝正在做：主鍵壓縮中（全介面只有這裡會動）
+       R3 AmIt-DasIT／neat-turkey-32      外凸內凹並存、放大 1.1        ＝選了／做完了：目標大小、外觀、完成的主鍵
+
+     規矩：
+       形狀只有三種：圓／膠囊 999／方塊 24（鍵帽 8；小圖塊 12）
+       字只有四階：28 大字／15 標題／13 內文／11 註記；字色兩階 ink／ink-mid，ink-off 只給「不能按」
+       影只有四種：raise-lg／raise-sm／deboss／checked。凸＝可按、凹＝容器或已選、平＝不能按
+       間距走 4 的倍數（4／8／12／16／20／28／40）；左右邊界 28；物件走中軸、文字掛左緣
+       藍 #003CFF 全畫面一處：進度的頭。實心，只在壓縮中與剛完成
+       品牌黃 #FFC814（捲尺黃）只給字標：暗色介面用黃；亮色介面黃在材料白上只有 1.4:1，字標改墨色。按鈕不上色
+       句子手動斷行，不留孤字
+     ─────────────────────────────────────────────────────────────── */
+
+
+  :root {
+    --material: #EEEFF2;
+    --shade: 163,166,175; --hi: 255,255,255; --hi-a: .95; --lo-a: .45; --ring-a: .95;
+    --ink: #282A2F; --ink-mid: #5F626A; --ink-off: #A2A5AD;       /* mid 5.31:1；off 只給不能按 */
+    --face: #E0E2E6; --face-deep: #D3D6DB;
+    --hair: rgba(163,166,175,.30);
+    --blue: #003CFF; --wm: invert(1);
+    --brand: var(--ink);                                          /* 亮色：字標用墨色（黃在材料白上看不見） */
+    --tape: #FFC814;                                              /* 品牌黃：app 圖示的磚、暗色介面的字標 */
+    --font: -apple-system, "PingFang TC", sans-serif;
+    --mono: "SF Mono", "Menlo", monospace;
+    --raise-lg: -10px -10px 20px rgba(var(--hi),var(--hi-a)), 10px 10px 20px rgba(var(--shade),var(--lo-a));
+    --raise-sm: -3px -3px 6px rgba(var(--hi),var(--hi-a)), 3px 3px 6px rgba(var(--shade),var(--lo-a));
+    --deboss:   inset 3px 3px 6px rgba(var(--shade),var(--lo-a)), inset -3px -3px 6px rgba(var(--hi),var(--hi-a));
+    --checked:  3px 3px 6px rgba(var(--shade),var(--lo-a)), -3px -3px 6px rgba(var(--hi),var(--hi-a)),
+                inset 3px 3px 6px rgba(var(--shade),var(--lo-a)), inset -3px -3px 6px rgba(var(--hi),var(--hi-a));
+    color-scheme: light;
+  }
+  :root[data-theme="dark"], :root:not([data-theme="light"]).sysdark {
+    --material: #2A2C31;
+    --shade: 0,0,0; --hi-a: .06; --lo-a: .55; --ring-a: .35;
+    --ink: #E6E7EA; --ink-mid: #A8ABB3; --ink-off: #6B6E76;       /* mid 6.08:1 */
+    --face: #34373D; --face-deep: #2C2F35;
+    --hair: rgba(255,255,255,.07); --wm: none;
+    --brand: var(--tape);                                         /* 暗色：字標用品牌黃（對暗材料 9:1） */
+    --checked:  3px 3px 6px rgba(0,0,0,.55), -1px -1px 4px rgba(255,255,255,.16),
+                inset 3px 3px 6px rgba(0,0,0,.55), inset -1px -1px 4px rgba(255,255,255,.16);
+    color-scheme: dark;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { position: relative; font-family: var(--font); color: var(--ink); background: var(--material);
+         -webkit-font-smoothing: antialiased; user-select: none; cursor: default; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:disabled { cursor: default; }
+  button:focus-visible, .what:focus-visible { outline: 2px solid var(--ink-mid); outline-offset: 2px; }
+  .hide { display: none !important; }
+
+  .t-display { font-weight: 600; font-size: 28px; line-height: 36px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-title   { font-weight: 600; font-size: 15px; line-height: 22px; }
+  .t-body    { font-weight: 400; font-size: 13px; line-height: 20px; color: var(--ink-mid); }
+  .t-cap     { font-weight: 400; font-size: 11px; line-height: 16px; color: var(--ink-mid); }
+  .one { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  b, .num { font-variant-numeric: tabular-nums; }
+
+  svg { width: 20px; height: 20px; display: block; flex: 0 0 auto; }
+  svg * { stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  .app { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 12px 28px 20px; }
+  .top { flex: 0 0 28px; display: flex; justify-content: flex-end; align-items: flex-start; }
+  .top .w, .wtop .w { display: block; height: 20px; width: 59.5px; }
+  /* 監看資料夾：左上角一顆小膠囊＝正在看幾個、暫停、有資料夾找不到 */
+  .wchip { margin-right: auto; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; box-shadow: var(--raise-sm); font-size: 11px; color: var(--ink-mid); max-width: 230px; }
+  .wchip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tape); flex: 0 0 auto; }
+  .wchip.off .dot { background: var(--ink-off); } .wchip.warn .dot { background: #E5484D; }
+  .wchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wf { padding: 12px 0; border-bottom: 1px solid var(--hair); display: flex; flex-direction: column; gap: 8px; }
+  .wf .top2 { display: flex; align-items: baseline; gap: 8px; } .wf .top2 .t-body { color: var(--ink); font-weight: 600; } .wf .grow { flex: 1 1 auto; }
+  .wf .st { font-size: 11px; color: var(--ink-mid); } .wf .st.warn { color: #E5484D; }
+  .wf .seg button { height: 28px; padding: 0 10px; font-size: 12px; }
+  .tog { width: 36px; height: 20px; border-radius: 999px; box-shadow: var(--deboss); position: relative; flex: 0 0 auto; }
+  .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-off); transition: left .15s, background .15s; }
+  .tog.on::after { left: 19px; background: var(--ink); }
+  .wrec { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .wrec .r { display: flex; gap: 8px; font-size: 12px; line-height: 18px; color: var(--ink-mid); } .wrec .r b { color: var(--ink); font-weight: 600; } .wrec .r .tm { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+  .top .w path, .wtop .w path { fill: var(--brand); stroke: none; }   /* 字標＝品牌正本向量（4_品牌/標準字/slimly_logotype_v1_word.svg），不打字 */
+
+  /* ① 什麼：空＝凹槽（整塊都是「選檔案」）；有＝凸起的卡 */
+  .what { flex: 0 0 64px; margin-top: 12px; border-radius: 24px; display: flex; align-items: center; gap: 12px; padding: 0 12px 0 20px; }
+  .what.slot { box-shadow: var(--deboss); cursor: pointer; }
+  .what.card { box-shadow: var(--raise-lg); padding-left: 12px; cursor: default; }
+  .what.slot .tile, .what.slot .txt, .what.slot .x, .what.card .hint, .what.card #pickBtn { display: none; }
+  .what .hint { flex: 1 1 auto; min-width: 0; font-size: 13px; line-height: 20px; color: var(--ink-mid); word-break: keep-all; text-wrap: balance; }   /* 兩行時斷在「照片或／Office」，不留一個字 */
+  .what.nudge { animation: nudge .5s ease; }
+  @keyframes nudge { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  body.dropping .what { box-shadow: var(--checked); }
+  body.dropping .what .hint { color: var(--ink); font-weight: 600; }
+  .tile { flex: 0 0 40px; height: 40px; border-radius: 12px; box-shadow: var(--deboss); display: grid; place-items: center; position: relative; color: var(--ink-mid); }
+  .tile svg { width: 18px; height: 18px; }
+  .tile.drag { cursor: grab; box-shadow: var(--raise-sm); color: var(--ink); }
+  .what .txt { flex: 1 1 auto; min-width: 0; }
+  .x { flex: 0 0 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-mid); }
+  .x:hover { color: var(--ink); }
+  body[data-state="run"] .x, body[data-state="done"] .x { display: none; }
+  .cap-key { flex: 0 0 auto; height: 40px; padding: 0 20px; border-radius: 999px; box-shadow: var(--raise-sm); display: inline-flex; align-items: center; gap: 8px;
+             font-weight: 600; font-size: 13px; color: var(--ink); background: var(--material); transition: box-shadow .14s ease-out; white-space: nowrap; }
+  .cap-key:active { box-shadow: var(--deboss); }
+  .cap-key:disabled { box-shadow: none; color: var(--ink-off); }
+  .cap-key svg { width: 16px; height: 16px; }
+  .cap-key.sm { height: 32px; padding: 0 12px; }
+  .cap-key.lg { box-shadow: var(--raise-lg); }
+  .cap-key.lg:active { box-shadow: var(--deboss); }
+
+  /* ② 做：主鍵。舞台 224、核心 96（同 Fully） */
+  .stagebox { flex: 0 0 224px; width: 224px; margin: 20px auto 0; position: relative; }
+  .ring { position: absolute; border-radius: 50%; opacity: 0; pointer-events: none; transition: opacity .4s ease;
+          background: linear-gradient(0deg, rgba(var(--shade),.10), rgba(var(--hi),.05)), var(--material);
+          border-top: 1px solid rgba(var(--hi), calc(var(--ring-a) * var(--b)));
+          box-shadow: 0 10px 10px rgba(var(--shade), .30); }
+  .ring:nth-child(1) { inset: 0;    --b: .2; z-index: 1; --d: .8s; }
+  .ring:nth-child(2) { inset: 16px; --b: .4; z-index: 2; --d: .6s; }
+  .ring:nth-child(3) { inset: 32px; --b: .6; z-index: 3; --d: .4s; }
+  .ring:nth-child(4) { inset: 48px; --b: .8; z-index: 4; --d: .2s; }
+  .core { position: absolute; inset: 64px; z-index: 5; border-radius: 50%; display: block; width: 96px; height: 96px; }
+  .mount { position: absolute; inset: 0; border-radius: 50%; background: var(--material); box-shadow: var(--raise-lg); transition: box-shadow .25s ease; }
+  .face { position: absolute; inset: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--face), var(--face-deep));
+          box-shadow: 0 2px 4px rgba(var(--shade),.38); display: grid; place-items: center; color: var(--ink); transition: transform .14s ease-out; }
+  .core:active .face { transform: scale(.97); }
+  .face svg { width: 28px; height: 28px; grid-area: 1 / 1; display: none; } .face svg * { stroke-width: 2.2; }
+  .face .sq { width: 16px; height: 16px; border-radius: 4px; background: var(--ink); grid-area: 1 / 1; display: none; }
+  body[data-o="off"] .g-go, body[data-o="on"] .g-go, body[data-o="run"] .sq, body[data-o="done"] .g-ok, body[data-o="retry"] .g-re { display: block; }
+  .arc { position: absolute; inset: 3px; border-radius: 50%; display: none;
+         background: conic-gradient(var(--ink) calc(var(--p, 0) * 1%), rgba(var(--shade), .30) 0); }
+  .arc::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--material); }
+  .head { position: absolute; inset: 3px; display: none; transform: rotate(calc(var(--p, 0) * 3.6deg)); z-index: 2; pointer-events: none; }
+  .head::before { content: ""; position: absolute; left: 50%; top: -2px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--blue); }
+  .olabel { position: absolute; left: -40px; right: -40px; top: 172px; text-align: center; font-weight: 600; font-size: 13px; line-height: 20px; color: var(--ink); z-index: 6; pointer-events: none; }
+
+  body[data-o="off"] .mount { box-shadow: none; }
+  body[data-o="off"] .face  { background: none; box-shadow: var(--deboss); color: var(--ink-off); }
+  body[data-o="off"] .olabel { color: var(--ink-off); }
+  body[data-o="run"] .ring { opacity: 1; animation: ripple 2s var(--d) infinite ease-in-out; }
+  body[data-o="run"] .core { animation: ripple 2s 0s infinite ease-in-out; }
+  body[data-o="run"] .mount { box-shadow: none; }
+  body[data-o="run"] .olabel { display: none; }
+  body[data-o="run"] .arc, body[data-o="run"] .head, body[data-o="done"] .head { display: block; }   /* 藍點：壓縮中是進度的頭，剛完成停在頂端（同 Fully） */
+  body[data-o="done"] .mount { box-shadow: var(--checked); }
+  body[data-o="done"] .face  { background: none; box-shadow: none; }
+  body[data-o="done"] .olabel { display: none; }
+  body.reading .arc { display: block; background: conic-gradient(var(--ink) 18%, rgba(var(--shade), .30) 0); animation: spin 1.05s linear infinite; }
+  @keyframes ripple { 0%,100% { transform: scale(1); box-shadow: 0 10px 10px rgba(var(--shade),.30); }
+                      50%     { transform: scale(1.1); box-shadow: 0 24px 18px rgba(var(--shade),.30); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* 截圖用：WebView 不在視窗裡時動畫不跑，把漣漪停在半途 */
+  body.freeze .ring, body.freeze .core { animation-play-state: paused !important; }
+  body.freeze .core { animation-delay: -.8s !important; }
+  body.freeze .ring:nth-child(4) { animation-delay: -.6s !important; } body.freeze .ring:nth-child(3) { animation-delay: -.4s !important; }
+  body.freeze .ring:nth-child(2) { animation-delay: -.2s !important; } body.freeze .ring:nth-child(1) { animation-delay: 0s !important; }
+  body.freeze, body.freeze * { transition: none !important; }
+  @media (prefers-reduced-motion: reduce) { .ring, .core { animation: none !important; } }
+
+  /* ③ 結果：文字掛左緣，一次只回答一件事 */
+  .zone { flex: 1 1 auto; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
+  .zone > * { flex-shrink: 0; }
+  .zone #sub { margin-top: 8px; max-width: 344px; }
+  .zone #note { margin-top: 8px; max-width: 344px; }
+  .zone #sub:empty, .zone #note:empty { display: none; }   /* 空的不佔高度：完成畫面的高度剛好 224，多 8px 就壓到頁尾 */
+  .acts { margin-top: 16px; display: flex; align-items: center; gap: 20px; flex-wrap: nowrap; }
+  .acts > .link { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .link { font-size: 13px; line-height: 20px; color: var(--ink-mid); white-space: nowrap; }
+  .link:hover { color: var(--ink); }
+  /* 目標大小：四顆膠囊（選了＝R3 已選的影），只在有檔待壓時出現 */
+  .seg { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+  .seg button { height: 32px; padding: 0 12px; border-radius: 999px; box-shadow: var(--raise-sm); font-size: 13px; color: var(--ink-mid); transition: box-shadow .3s; white-space: nowrap; }
+  .seg button.on { box-shadow: var(--checked); color: var(--ink); font-weight: 600; }
+  /* 壓前預估：目標膠囊下面一行＝選這個會壓到多大 */
+  .seg button.est { height: 44px; padding: 0 10px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 16px; }
+  .seg button small { font-size: 10px; line-height: 14px; font-weight: 400; color: var(--ink-mid); font-variant-numeric: tabular-nums; }
+  .seg button small.no { color: var(--ink-off); }
+  /* 前後對照：同一頁疊在一起，左邊壓前、右邊壓後，拖中間的線比 */
+  .cmpv { position: relative; flex: 1 1 auto; min-height: 0; margin-top: 12px; border-radius: 16px; overflow: hidden; box-shadow: var(--deboss); touch-action: none; cursor: grab; }
+  .cmpin { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .cmpin img, .cmpb img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+  .cmpb { position: absolute; inset: 0; }
+  .cmpline { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--tape); pointer-events: none; }
+  .cmpline .knob { position: absolute; top: 50%; left: -11px; width: 24px; height: 24px; margin-top: -12px; border-radius: 50%; background: var(--tape); box-shadow: var(--raise-sm); }
+  .cmptag { position: absolute; top: 10px; padding: 2px 8px; border-radius: 999px; font-size: 11px; line-height: 16px; background: var(--material); color: var(--ink); pointer-events: none; }
+  .cmptag.l { left: 10px; } .cmptag.r { right: 10px; }
+  .cmpload { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--material); }
+  .cmpbar { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+  .cmpbar .grow { flex: 1 1 auto; }
+  .cmpbar .ic { width: 32px; height: 32px; border-radius: 50%; box-shadow: var(--raise-sm); font-size: 16px; color: var(--ink-mid); }
+  .cmpbar .t-cap { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+  #targetSeg { margin-top: 12px; }
+  /* 「結果」膠囊（凹的容器）：達標／畫質 */
+  .proof { margin-top: 12px; align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px 0 10px;
+           border-radius: 999px; box-shadow: var(--deboss); font-size: 13px; line-height: 20px; white-space: nowrap; max-width: 344px; overflow: hidden; }
+  .proof svg { width: 16px; height: 16px; color: var(--ink-mid); }
+  .proof b { font-weight: 600; color: var(--ink); }
+  .proof span { color: var(--ink-mid); overflow: hidden; text-overflow: ellipsis; }
+  /* 一批的清單：一行一份，名稱＋前後大小或原因 */
+  .list { margin-top: 12px; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; max-height: 66px; }   /* 三行；多的往下捲 */
+  .list::-webkit-scrollbar { width: 0; }
+  .li { display: flex; align-items: center; gap: 8px; min-height: 22px; font-size: 11px; line-height: 16px; color: var(--ink-mid); }
+  .li svg { width: 12px; height: 12px; } .li svg * { stroke-width: 2.4; }
+  .li .n { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+  .li .v { flex: 0 0 auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .li button.rm { width: 18px; height: 18px; color: var(--ink-mid); display: grid; place-items: center; }
+  .li button.rm svg { width: 10px; height: 10px; }
+  .detail { margin-top: 8px; font-family: var(--mono); font-size: 11px; line-height: 16px; color: var(--ink-mid); white-space: pre-wrap; max-height: 64px; overflow-y: auto; user-select: text; cursor: text; }
+
+  /* ④ 其他：一行分散，左｜中｜右 */
+  .foot { flex: 0 0 24px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+  .foot button { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; color: var(--ink-mid); }
+  .foot button:hover { color: var(--ink); }
+  .foot button svg { width: 16px; height: 16px; }
+  .foot .l { justify-self: start; } .foot .r { justify-self: end; }
+  .pb { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; line-height: 16px; color: var(--ink-mid); }
+  .pb img { display: block; height: 8px; width: auto; filter: var(--wm); }   /* 字標是白版 PNG；淺色底反相成黑 */
+
+  .toast { position: absolute; left: 28px; right: 28px; bottom: 56px; z-index: 30; text-align: center; opacity: 0; transition: opacity .3s ease; pointer-events: none; }
+  .toast.on { opacity: 1; }
+
+  /* 次頁：最近壓的／設定／Slimly 能做什麼 */
+  .page { position: absolute; inset: 0; z-index: 9; background: var(--material); padding: 52px 28px 20px; display: none; flex-direction: column; }
+  .page.on { display: flex; }
+  .page .hd { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .page .bd { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .page .bd::-webkit-scrollbar { width: 0; }
+  .row { display: flex; align-items: center; gap: 12px; min-height: 56px; border-top: 1px solid var(--hair); width: 100%; text-align: left; }
+  .row.col { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 0 16px; }
+.row.col .links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.wterms { margin-top: 14px; display: flex; align-items: center; gap: 8px; }
+  .row .l { flex: 1 1 auto; min-width: 0; }
+  .row .l .t-body { color: var(--ink); }
+  .row .tile { flex: 0 0 40px; height: 40px; }
+  .row .go { color: var(--ink-mid); }
+  .row.split { justify-content: space-between; }
+  .num-in { width: 72px; height: 32px; border-radius: 999px; box-shadow: var(--deboss); border: 0; outline: 0; background: transparent; padding: 0 12px;
+            font: 600 13px var(--font); color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; user-select: text; cursor: text; }
+  .num-in::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .about .t-body { margin-bottom: 16px; }
+  .about .t-body b { font-weight: 600; color: var(--ink); }
+
+  /* 鍵帽與小圖示（精靈、說明用；講到按鍵一律畫鍵帽） */
+  .g-dock { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; vertical-align: middle; margin: 0 4px; box-shadow: var(--raise-sm); }
+  .g-dock i { display: block; width: 12px; height: 12px; border-radius: 3px; background: var(--tape); }
+
+  /* 設定精靈（首啟；--wizard 可強制）：同一套規矩 */
+  .wiz { position: absolute; inset: 0; z-index: 12; background: var(--material); padding: 12px 28px 20px; display: flex; flex-direction: column; }
+  .wtop { flex: 0 0 28px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .wpage { display: none; flex: 1 1 auto; min-height: 0; flex-direction: column; padding-top: 40px; }
+  .wpage.on { display: flex; }
+  .wpage .t-display { white-space: normal; }
+  .wpage > .t-body { margin-top: 12px; max-width: 330px; }
+  .appicon { width: 64px; height: 64px; margin-bottom: 20px; border-radius: 14px; box-shadow: var(--raise-sm); }
+  .wcard { margin-top: 20px; min-height: 64px; padding: 12px 12px 12px 20px; border-radius: 24px; box-shadow: var(--deboss); display: flex; align-items: center; gap: 12px; }
+  .wcard .path { flex: 1 1 auto; min-width: 0; font-family: var(--mono); font-size: 11px; line-height: 16px; color: var(--ink); direction: rtl; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wcard.ex { flex-direction: column; align-items: stretch; gap: 4px; padding: 14px 20px; }
+  .wcard.ex .r { display: flex; gap: 8px; align-items: center; font-size: 13px; line-height: 20px; color: var(--ink); }
+  .wcard.ex .r svg { width: 14px; height: 14px; color: var(--ink-mid); }
+  .wcard.ex .r .dim { color: var(--ink-mid); }
+  /* 精靈裡的選項：一行一個，選了＝R3 已選的影 */
+  .opts { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .opt { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 16px; border-radius: 24px; box-shadow: var(--raise-sm); text-align: left; transition: box-shadow .3s; }
+  .opt .dot { flex: 0 0 16px; height: 16px; border-radius: 50%; box-shadow: var(--deboss); position: relative; }
+  .opt.on { box-shadow: var(--checked); }
+  .opt.on .dot::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--ink); }
+  .opt .l { flex: 1 1 auto; min-width: 0; }
+  .opt .t-body { color: var(--ink); } .opt.on .t-body { font-weight: 600; }
+  .wtodo { margin-top: 20px; list-style: none; counter-reset: n; }
+  .wtodo li { counter-increment: n; position: relative; padding-left: 28px; font-size: 13px; line-height: 20px; color: var(--ink); margin-bottom: 16px; }
+  .wtodo li::before { content: counter(n); position: absolute; left: 0; top: 0; width: 16px; text-align: right; color: var(--ink-mid); }
+  .wtodo li .t-cap { display: block; margin-top: 2px; }
+  .promise { margin-top: 20px; padding: 16px 20px; border-radius: 24px; box-shadow: var(--deboss); }
+  .promise li { list-style: none; position: relative; padding-left: 16px; font-size: 13px; line-height: 20px; color: var(--ink); margin-bottom: 4px; }
+  .promise li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 4px; height: 4px; border-radius: 50%; background: var(--ink-mid); }
+  .wrow { margin-top: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .wnav { flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+  .wnav .l { justify-self: start; } .wnav .r { justify-self: end; display: flex; align-items: center; gap: 20px; }
+
+  /* ── 編輯與轉檔（2.1）：三個入口（編輯器另開視窗、轉檔、比較兩版）。同一套規矩：凸＝可按、凹＝容器／已選、藍只給進度的頭 ── */
+  #pTools .bd, #pTool .bd { padding: 8px 10px 20px; margin: 0 -10px; }       /* 留給凸起的影，不被捲動框切掉 */
+  .lcard { width: 100%; display: flex; align-items: center; gap: 16px; padding: 16px 20px 16px 16px; margin-top: 16px; border-radius: 24px; box-shadow: var(--raise-sm); text-align: left; transition: box-shadow .14s ease-out; }
+  .lcard:active { box-shadow: var(--deboss); }
+  .lcard .tile { flex: 0 0 48px; height: 48px; }
+  .lcard .l { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .lcard .t-body { color: var(--ink-mid); }
+  .lnote { margin-top: 20px; }
+  .tfoot { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; }
+  #pTool .hd { align-items: flex-start; }
+  .tl { min-width: 0; }
+  .tback { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; line-height: 20px; color: var(--ink-mid); margin-bottom: 4px; }
+  .tback:hover { color: var(--ink); }
+  .tback svg { width: 14px; height: 14px; }
+  #tName { white-space: normal; }
+  #tDesc { margin-bottom: 16px; }
+  .drop { height: 64px; border-radius: 24px; box-shadow: var(--deboss); display: flex; align-items: center; gap: 12px; padding: 0 12px 0 20px; cursor: pointer; }
+  .drop .hint { flex: 1 1 auto; min-width: 0; font-size: 13px; line-height: 20px; color: var(--ink-mid); }
+  body.dropping .drop { box-shadow: var(--checked); }
+  body.dropping .drop .hint { color: var(--ink); font-weight: 600; }
+  .under { margin-top: 8px; display: flex; gap: 20px; }
+  /* 放進來的檔：一份一列（凸起的卡）；要排順序的有握把，按住拖 */
+  .tfiles { display: flex; flex-direction: column; gap: 8px; }
+  .tfiles:not(:empty) { margin-top: 12px; }
+  .fr { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 6px 6px 8px; border-radius: 24px; box-shadow: var(--raise-sm); background: var(--material); }
+  .fr .tile { flex: 0 0 40px; }
+  .fr .l { flex: 1 1 auto; min-width: 0; }
+  .fr .l .t-body { color: var(--ink); }
+  .fr.warn .t-cap { color: var(--ink); }
+  .fr .x { flex: 0 0 32px; }
+  .tout .fr { cursor: pointer; }
+  /* 選項：一格一件事，說明在上、控制在下；短的（數字、勾選）放同一行 */
+  .topts { display: flex; flex-direction: column; gap: 16px; }
+  .topts:not(:empty) { margin-top: 20px; }
+  .op > .t-cap { display: block; margin-bottom: 8px; }
+  .op.inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .op.inline > .t-cap { margin: 0; }
+  .op.dim { opacity: .45; pointer-events: none; }
+  .txt-in { width: 100%; height: 36px; border-radius: 999px; box-shadow: var(--deboss); border: 0; outline: 0; background: transparent; padding: 0 16px;
+            font: 400 13px var(--font); color: var(--ink); user-select: text; cursor: text; }
+  .txt-in::placeholder, .area-in::placeholder { color: var(--ink-off); }
+  .area-in { width: 100%; min-height: 76px; border-radius: 24px; box-shadow: var(--deboss); border: 0; outline: 0; background: transparent; padding: 12px 16px;
+             font: 400 13px/20px var(--font); color: var(--ink); resize: none; user-select: text; cursor: text; display: block; }
+  .chk { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 32px; font-size: 13px; line-height: 20px; color: var(--ink); text-align: left; }
+  .chk .dot { flex: 0 0 16px; height: 16px; border-radius: 50%; box-shadow: var(--deboss); position: relative; }
+  .chk.on .dot::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--ink); }
+  /* 做：主鍵＋一句原因；做的時候一條進度（藍點＝頭，全畫面唯一的藍） */
+  .tact { margin-top: 24px; display: flex; align-items: center; gap: 16px; }
+  .tact .t-cap { flex: 1 1 auto; min-width: 0; }
+  .tres { margin-top: 20px; }
+  #tState { white-space: normal; }
+  #tSub { margin-top: 8px; user-select: text; cursor: text; }
+  #tSub:empty { display: none; }
+  .tbar { position: relative; height: 12px; border-radius: 999px; box-shadow: var(--deboss); margin-top: 16px; }
+  .tbar i { position: absolute; left: 3px; top: 3px; bottom: 3px; width: calc((100% - 6px) * var(--p, 0)); min-width: 6px; border-radius: 999px; background: var(--ink); transition: width .25s ease; }
+  .tbar b { position: absolute; top: 1px; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); left: calc(3px + (100% - 16px) * var(--p, 0)); transition: left .25s ease; }
+  .tbar.busy i { width: 30%; animation: slide 1.2s ease-in-out infinite alternate; } .tbar.busy b { display: none; }
+  @keyframes slide { from { left: 3px; } to { left: calc(70% - 3px); } }
+  .ttext { margin-top: 12px; max-height: 240px; overflow-y: auto; padding: 16px 20px; border-radius: 24px; box-shadow: var(--deboss);
+           font-size: 13px; line-height: 20px; color: var(--ink); white-space: pre-wrap; user-select: text; cursor: text; }
+  .tout { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  #tActs { margin-top: 16px; }
+  body[data-tool="run"] #tDrop, body[data-tool="run"] #tFiles, body[data-tool="run"] #tUnder, body[data-tool="run"] #tOpts { opacity: .45; pointer-events: none; }
+</style>
+
+<div class="app">
+  <header class="top"><button class="wchip hide" id="watchChip"><i class="dot"></i><span id="watchChipT"></span></button><svg class="w" viewBox="%%WORD_VB%%" role="img" aria-label="Slimly"><path d="%%WORD_D%%"/></svg></header>
+
+  <section class="what slot" id="what" tabindex="0" aria-label="選擇 PDF">
+    <span class="hint" id="hint" data-i18n>把 PDF、照片或 Office 檔拖進來</span>
+    <button class="cap-key" id="pickBtn"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span data-i18n>選擇檔案</span></button>
+    <span class="tile" id="cardIcon"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg></span>
+    <div class="txt"><div class="t-title one" id="cardTitle"></div><div class="t-cap one" id="cardSub"></div></div>
+    <button class="x" id="clearBtn" aria-label="清掉"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </section>
+
+  <div class="stagebox">
+    <span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span>
+    <button class="core" id="orbBtn" aria-label="壓縮">
+      <span class="mount"></span><span class="arc" id="arc"></span><span class="head" id="head"></span>
+      <span class="face">
+        <svg class="g-go" viewBox="0 0 24 24"><path d="m4 6 6 6-6 6"/><path d="m20 6-6 6 6 6"/></svg>
+        <svg class="g-ok" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+        <svg class="g-re" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.9 1 6.7 2.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        <span class="sq"></span>
+      </span>
+    </button>
+    <div class="olabel" id="orbLabel">壓縮</div>
+  </div>
+
+  <section class="zone" id="zone">
+    <div class="t-display" id="state"></div>
+    <div class="t-body" id="sub"></div>
+    <span class="seg hide" id="targetSeg"></span>
+    <div class="proof hide" id="proof"><svg viewBox="0 0 24 24" id="proofIcon"><path d="M20 6 9 17l-5-5"/></svg><b id="proofB"></b><span id="proofS"></span></div>
+    <div class="list hide" id="list"></div>
+    <div class="t-cap" id="note"></div>
+    <div class="detail hide" id="detail"></div>
+    <div class="acts hide" id="acts"></div>
+  </section>
+
+  <footer class="foot">
+    <button class="l" id="toolsBtn"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><span data-i18n>編輯・轉檔</span></button>
+    <span class="pb">Powered by <img src="brand/intention_wordmark.png" alt="INTENTION"></span>
+    <button class="r" id="settingsBtn"><span data-i18n>設定</span><svg viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.6"/><circle cx="8" cy="17" r="2.6"/></svg></button>
+  </footer>
+</div>
+
+<div class="toast t-cap" id="toast" role="status"></div>
+
+<div class="page" id="pRecent">
+  <div class="hd"><span class="t-display" data-i18n>最近做的</span><button class="cap-key" data-close><span data-i18n>好</span></button></div>
+  <div class="bd"><div id="histList"></div>
+    <div class="row split"><span class="t-cap" data-i18n>點一下＝在 Finder 顯示</span><button class="link" id="histClear" data-i18n>清除這份紀錄</button></div></div>
+</div>
+
+<div class="page" id="pSettings">
+  <div class="hd"><span class="t-display" data-i18n>設定</span><button class="cap-key" data-close><span data-i18n>好</span></button></div>
+  <div class="bd">
+    <div class="row col"><div class="l"><div class="t-body" data-i18n>壓到多小</div><div class="t-cap" id="targetCap"></div></div>
+      <span class="wrow" style="margin-top:0"><span class="seg" id="setTargetSeg"></span><span class="t-cap" data-i18n>自訂</span><input class="num-in" id="customMB" type="number" min="1" max="2000" step="1" aria-label="自訂 MB"><span class="t-cap">MB</span></span></div>
+    <div class="row col"><div class="l"><div class="t-body" data-i18n>壓好的放哪</div><div class="t-cap one" id="placeCap"></div></div>
+      <span class="wrow" style="margin-top:0"><span class="seg" id="placeSeg"><button data-place="beside" data-i18n>原檔旁邊</button><button data-place="folder" data-i18n>固定資料夾</button></span><button class="link" id="folderBtn" data-i18n>更改</button></span></div>
+    <div class="row col" id="origRow"><div class="l"><div class="t-body" data-i18n>原檔</div><div class="t-cap" id="origCap"></div></div>
+      <span class="seg" id="origSeg"><button data-orig="keep" data-i18n>留在原處</button><button data-orig="backup" data-i18n>收進「未壓縮備份」</button></span></div>
+    <div class="row col"><div class="l"><div class="t-body" data-i18n>照片的位置資訊（GPS）</div><div class="t-cap" id="gpsCap"></div></div>
+      <span class="seg" id="gpsSeg"><button data-gps="keep" data-i18n>照留</button><button data-gps="strip" data-i18n>拿掉</button></span></div>
+    <div class="row"><div class="l"><div class="t-body" data-i18n>外觀</div></div><span class="seg" id="themeSeg"><button data-theme="system" data-i18n>跟系統</button><button data-theme="light" data-i18n>淺色</button><button data-theme="dark" data-i18n>深色</button></span></div>
+    <div class="row"><div class="l"><div class="t-body" data-i18n>語言</div></div><span class="seg" id="langSeg"><button data-lang="system" data-i18n>跟系統</button><button data-lang="zh">中文</button><button data-lang="en">English</button></span></div>
+    <button class="row" id="watchBtn"><div class="l"><div class="t-body" data-i18n>監看資料夾</div><div class="t-cap" id="watchCap"></div></div><span class="go"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span></button>
+    <button class="row" id="recentBtn"><div class="l"><div class="t-body" data-i18n>最近做的</div><div class="t-cap" data-i18n>壓好的、用工具做出來的，點一下在 Finder 顯示</div></div><span class="go"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span></button>
+    <button class="row" id="aboutBtn"><div class="l"><div class="t-body" data-i18n>Slimly 能做什麼</div></div><span class="go"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span></button>
+    <button class="row" id="wizAgain"><div class="l"><div class="t-body" data-i18n>重看一次設定精靈</div></div><span class="go"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span></button>
+    <div class="row col"><div class="l"><div class="t-body" data-i18n>關於 Slimly</div><div class="t-cap one" id="aboutLine">—</div></div>
+      <button class="link" id="noticesBtn" data-i18n>開源元件聲明</button>
+      <span class="links"><button class="link" data-doc="terms" data-i18n>使用規範</button><button class="link" data-doc="privacy" data-i18n>隱私與權限</button><button class="link" data-doc="license" data-i18n>授權（AGPL-3.0）</button></span></div>
+  </div>
+</div>
+
+<div class="page" id="pAbout">
+  <div class="hd"><span class="t-display" data-i18n>Slimly 能做什麼</span><button class="cap-key" data-close><span data-i18n>好</span></button></div>
+  <div class="bd about">
+    <div class="t-body" data-i18n><b>畫質優先，剛好就停</b><br>先把用無損方式存的照片換成高品質 JPEG——<br>看不出差別、體積大減。不夠小才降畫質，<br>最後才降解析度。壓到目標就停，不一次砍到底。</div>
+    <div class="t-body" data-i18n><b>不會出事</b><br>原檔不覆蓋、不刪除。壓完核對頁數，對不上就不交。<br>沒變小就不另存——原檔就是最好的版本。</div>
+    <div class="t-body" data-i18n><b>壓不動、壓不好的時候會直說</b><br>圖本來就壓過的檔能省的有限，Slimly 會直接說；<br>壓完每一頁都跟原檔比一次，畫面對不上就不交，<br>原檔永遠留著。</div>
+    <div class="t-body" data-i18n><b>有密碼、有簽章、有表單</b><br>有密碼的先解鎖再壓（Slimly 不破解）。<br>有電子簽章或可填寫表單的會先問你：<br>壓了簽章會失效、欄位不能再填。</div>
+    <div class="t-body" data-i18n><b>編輯器與轉檔</b><br>左下角「編輯・轉檔」：PDF 編輯器（加字、改字、簽名、塗黑、<br>標註、排頁、合併、填表單、頁碼、浮水印、翻譯、匯出），<br>轉檔（Word、PPT、Excel、圖片、網頁 ↔ PDF），比較兩版。<br>一樣全部在這台 Mac 上做。</div>
+    <div class="t-body" data-i18n><b>順手</b><br>一次拖很多份、或整個資料夾，會一份一份排隊壓；<br>壓縮中還能再丟。按中間那顆可以停，停下來的下次接著壓。<br>壓完可以直接分享；壓不到目標的，能拆成幾份分開寄。<br>全部在這台電腦上處理，不上傳。</div>
+  </div>
+</div>
+
+<!-- 編輯與轉檔（2.1）：三個入口（編輯器、轉檔、比較兩版）；iLovePDF 那 32 個工具都收在這三個裡 -->
+<div class="page" id="pTools">
+  <div class="hd"><span class="t-display" data-i18n>編輯與轉檔</span><button class="cap-key" data-close><span data-i18n>好</span></button></div>
+  <div class="bd">
+    <button class="lcard" id="goEdit"><span class="tile"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span>
+      <span class="l"><span class="t-title" data-i18n>編輯 PDF</span><span class="t-body" data-i18n>加字、改字、簽名、塗黑、標註、排頁、合併、填表單、頁碼、浮水印、翻譯、匯出</span></span></button>
+    <button class="lcard" id="goConvert"><span class="tile"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/></svg></span>
+      <span class="l"><span class="t-title" data-i18n>轉檔</span><span class="t-body" data-i18n>Word、PPT、Excel、圖片、網頁 ↔ PDF；手機拍的文件照變成 PDF</span></span></button>
+    <button class="lcard" id="goCompare"><span class="tile"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="16" rx="1.5"/><path d="M6 8.5h1M6 12h1M17 8.5h1M17 15.5h1"/></svg></span>
+      <span class="l"><span class="t-title" data-i18n>比較兩版</span><span class="t-body" data-i18n>找出兩份 PDF 哪裡改了</span></span></button>
+    <div class="t-cap lnote" data-i18n>壓縮在主畫面。工具一次可以選好幾份。<br>全部在這台 Mac 上做，不上傳。</div>
+    <div class="tfoot"><button class="link" id="tRecent" data-i18n>最近做的</button></div>
+  </div>
+</div>
+
+<!-- 一個工具：放檔 → 選項 → 做 → 結果 -->
+<!-- 前後對照：同一頁疊在一起，左＝壓前、右＝壓後；拖中間的線比、放大、換頁 -->
+<div class="page" id="pCompare">
+  <div class="hd"><span class="t-display" data-i18n>前後對照</span><button class="cap-key" id="cmpClose"><span data-i18n>好</span></button></div>
+  <div class="t-body" id="cmpSizes"></div>
+  <div class="cmpv" id="cmpView" aria-label="前後對照">
+    <div class="cmpin" id="cmpBox"><img id="cmpA" alt=""><div class="cmpb" id="cmpBWrap"><img id="cmpB" alt=""></div></div>
+    <div class="cmpline" id="cmpLine"><span class="knob"></span></div>
+    <span class="cmptag l" data-i18n>壓前</span><span class="cmptag r" data-i18n>壓後</span>
+    <div class="cmpload" id="cmpLoad"><span class="t-body" data-i18n>正在畫這一頁…</span><button class="link" id="cmpCancel" data-i18n>取消</button></div>
+  </div>
+  <div class="cmpbar">
+    <button class="ic" id="cmpPrev" aria-label="上一頁">‹</button><span class="t-cap" id="cmpPage"></span><button class="ic" id="cmpNext" aria-label="下一頁">›</button>
+    <span class="grow"></span>
+    <button class="ic" id="cmpZoomOut" aria-label="縮小">−</button><span class="t-cap" id="cmpZoom">100%</span><button class="ic" id="cmpZoomIn" aria-label="放大">+</button>
+  </div>
+  <div class="row split"><span class="t-cap" data-i18n>拖中間的黃線比；放大之後拖畫面移動</span><button class="link" id="cmpOpen" data-i18n>打開壓好的檔</button></div>
+</div>
+
+<!-- 監看資料夾：丟進這些資料夾的 PDF、照片自動壓，放進裡面的「Slimly 已壓縮」 -->
+<div class="page" id="pWatch">
+  <div class="hd"><span class="t-display" data-i18n>監看資料夾</span><button class="cap-key" data-close><span data-i18n>好</span></button></div>
+  <div class="bd">
+    <div class="t-body" data-i18n>丟進這些資料夾的 PDF、照片（HEIC、JPEG、PNG）和 Office 檔（Word、PowerPoint、Excel）會自動壓，放進裡面的「Slimly 已壓縮」；原檔不動。Slimly 開著才會看。</div>
+    <div id="watchList"></div>
+    <div class="row split"><button class="cap-key sm" id="watchAddBtn"><span data-i18n>加資料夾…</span></button>
+      <span class="wrow" style="margin-top:0"><span class="t-cap" data-i18n>暫停</span><button class="tog" id="watchPause" aria-label="暫停監看"></button></span></div>
+    <div class="t-cap" style="margin-top:16px" data-i18n>最近處理的</div>
+    <div class="wrec" id="watchRecent"></div>
+  </div>
+</div>
+
+<div class="page" id="pTool">
+  <div class="hd">
+    <div class="tl"><button class="tback" id="tBack"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg><span data-i18n>編輯與轉檔</span></button><div class="t-display" id="tName"></div></div>
+    <button class="cap-key" id="tClose"><span data-i18n>好</span></button>
+  </div>
+  <div class="bd" id="tBody">
+    <div class="t-body" id="tDesc"></div>
+    <div class="drop" id="tDrop" tabindex="0"><span class="hint" id="tDropHint"></span><button class="cap-key" id="tPick"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span data-i18n>選擇檔案</span></button></div>
+    <div class="tfiles" id="tFiles"></div>
+    <div class="under hide" id="tUnder"></div>
+    <div class="topts" id="tOpts"></div>
+    <div class="tact" id="tAct"><button class="cap-key lg" id="tRun"></button><span class="t-cap" id="tHint"></span></div>
+    <div class="tres hide" id="tRes">
+      <div class="t-display" id="tState"></div>
+      <div class="t-body" id="tSub"></div>
+      <div class="tbar hide" id="tBar"><i></i><b></b></div>
+      <div class="ttext hide" id="tText"></div>
+      <div class="tout" id="tOut"></div>
+      <div class="acts hide" id="tActs"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 設定精靈 -->
+<div class="wiz hide" id="wiz">
+  <div class="wtop"><span class="t-cap" id="wstep"></span><svg class="w" viewBox="%%WORD_VB%%" role="img" aria-label="Slimly"><path d="%%WORD_D%%"/></svg></div>
+  <div class="wpage" data-p="welcome">
+    <img class="appicon" src="brand/appicon.png" alt="">
+    <div class="t-display">Drop the PDF.<br>Get it slim.</div>
+    <div class="t-body" data-i18n>把 PDF 壓到寄得出去，畫質幾乎看不出差別。<br>三步設定，一分鐘。</div>
+    <ul class="promise">
+      <li data-i18n>全部在這台電腦上處理，不上傳</li>
+      <li data-i18n>原檔不會被覆蓋，也不會被刪</li>
+      <li data-i18n>剛好壓到目標就停，不一次砍到底</li>
+    </ul>
+    <div class="t-cap wterms"><span data-i18n>只處理你有權處理的檔案</span> <button class="link" data-doc="terms" data-i18n>使用規範</button></div>
+  </div>
+  <div class="wpage" data-p="target">
+    <div class="t-display" data-i18n>通常寄去哪</div>
+    <div class="t-body" data-i18n>Slimly 會壓到這個大小以下，剛好到就停。<br>主畫面隨時可以換。</div>
+    <div class="opts" id="wTargets"></div>
+  </div>
+  <div class="wpage" data-p="place">
+    <div class="t-display" data-i18n>壓好的放哪</div>
+    <div class="t-body" data-i18n>原檔永遠不動；壓好的另存一份。</div>
+    <div class="opts" id="wPlaces">
+      <button class="opt" data-place="beside"><span class="dot"></span><span class="l"><div class="t-body" data-i18n>放在原檔旁邊</div><div class="t-cap" data-i18n>檔名多「（已壓縮）」，一眼分得出來</div></span></button>
+      <button class="opt" data-place="folder"><span class="dot"></span><span class="l"><div class="t-body" data-i18n>固定放一個資料夾</div><div class="t-cap one" id="wFolder"></div></span></button>
+    </div>
+    <div class="wcard ex">
+      <div class="r"><span data-i18n>品牌提案.pdf</span><span class="dim">65.3 MB</span></div>
+      <div class="r"><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg><span id="wExName" data-i18n>品牌提案（已壓縮）.pdf</span><span class="dim">10.3 MB</span></div>
+    </div>
+  </div>
+  <div class="wpage" data-p="use">
+    <div class="t-display" data-i18n>怎麼用</div>
+    <div class="t-body" data-i18n>三種放法，哪種順手用哪種。</div>
+    <ol class="wtodo">
+      <li><span data-i18n>把 PDF 拖進視窗，或拖到 Dock 上的 Slimly</span> <span class="g-dock"><i></i></span></li>
+      <li><span data-i18n>在 Finder 對 PDF 按右鍵 →「服務」→「用 Slimly 壓縮」</span><span class="t-cap" data-i18n>看不到的話在「快速動作」或「服務」底下</span></li>
+      <li><span data-i18n>一次拖一整個資料夾也行，會一份一份壓</span></li>
+      <li><span data-i18n>改字、簽名、合併、轉檔……在左下角「編輯・轉檔」</span></li>
+    </ol>
+  </div>
+  <div class="wnav">
+    <button class="link l" id="wback" data-i18n>上一步</button>
+    <span class="pb" id="wpb">Powered by <img src="brand/intention_wordmark.png" alt="INTENTION"></span>
+    <span class="r"><button class="link" id="wskip" data-i18n>先跳過</button><button class="cap-key lg" id="wnext"></button></span>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const send = (action, payload = {}) => window.webkit?.messageHandlers?.app?.postMessage({ action, ...payload });
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  // ── 中文／English：元素用 data-i18n 整塊換（原文＝中文），JS 裡的句子走 tr('中文 {變數}', {變數}) ──
+  let LANG = 'zh';
+  const EN = {
+    '把 PDF、照片或 Office 檔拖進來': 'Drop a PDF, photo or Office file', '{p} 張投影片': '{p} slides', '{m} 張圖': '{m} images',
+    'Office 檔只重壓裡面的圖；文字、版面、動畫都不動。': 'Office files: only the images inside are recompressed; text, layout and animations stay.',
+    '這份裡面的圖本來就壓過了，或幾乎沒有圖（文字、表格壓不小）。': 'The images inside are already compressed, or there are hardly any (text and tables don’t shrink).',
+    '這不是 PDF、照片或 Office 檔': 'Not a PDF, photo or Office file', 'Slimly 壓 PDF、照片（HEIC、JPEG、PNG）<br>與 Office 檔（docx、pptx、xlsx）。': 'Slimly compresses PDFs, photos (HEIC, JPEG, PNG)<br>and Office files (docx, pptx, xlsx).',
+    '舊格式的 Office 檔': 'Old Office format', '不支援，請先另存新格式：用 Word、PowerPoint、Excel<br>另存成 .docx／.pptx／.xlsx 再拖進來。': 'Not supported — save it in the new format first:<br>.docx/.pptx/.xlsx from Word, PowerPoint or Excel.',
+    '這份 Office 檔有密碼': 'This Office file has a password', '先用 Word、PowerPoint、Excel 打開、取消密碼，<br>另存一份再拖進來。Slimly 不破解密碼。': 'Open it in Word, PowerPoint or Excel, remove the password<br>and save a copy first. Slimly doesn’t crack passwords.',
+    '這份有數位簽章': 'This file is digitally signed', '壓縮要重新打包檔案，簽章會失效，<br>所以 Slimly 不動它。': 'Repacking would invalidate the signature,<br>so Slimly leaves it alone.',
+    '這份裡面嵌了 OLE 物件': 'This file embeds OLE objects', '插入的 Excel 工作表、Word 文件、ActiveX 控制項<br>這類 OLE 物件，Slimly 不動它。': 'Inserted worksheets, documents or ActiveX controls<br>are OLE objects, so Slimly leaves the file alone.',
+    '這份有巨集': 'This file has macros', 'docm／pptm／xlsm（或帶巨集的檔）Slimly 不動它。': 'Slimly leaves macro-enabled files (docm/pptm/xlsm) alone.',
+    '不是完整的 Office 檔（可能下載到一半，<br>或副檔名被改過）。': 'Not a complete Office file (maybe a partial download,<br>or a renamed extension).',
+    '資料夾裡沒有 PDF、照片或 Office 檔': 'No PDFs, photos or Office files in this folder',
+    '監看資料夾': 'Watched folders', '加資料夾…': 'Add folder…', '暫停': 'Pause', '最近處理的': 'Recently processed',
+    '丟進這些資料夾的 PDF、照片（HEIC、JPEG、PNG）和 Office 檔（Word、PowerPoint、Excel）會自動壓，放進裡面的「Slimly 已壓縮」；原檔不動。Slimly 開著才會看。': 'PDFs, photos (HEIC, JPEG, PNG) and Office files (Word, PowerPoint, Excel) dropped into these folders are compressed automatically into “Slimly Compressed” inside; originals stay. Works while Slimly is open.',
+    '監看中・{n} 個資料夾': 'Watching {n} folder(s)', '監看暫停': 'Watching paused', '監看：有資料夾找不到': 'Watching: a folder is missing', '正在壓 {n}': 'Compressing {n}',
+    '還沒有監看的資料夾': 'No watched folders yet', '監看 {n} 個資料夾': 'Watching {n} folder(s)', '已暫停': 'Paused',
+    '監看中': 'Watching', '找不到這個資料夾（移走或刪了？）': 'Folder not found (moved or deleted?)', '沒有權限讀這個資料夾': 'No permission to read this folder',
+    '拿掉': 'Remove', '打開「Slimly 已壓縮」': 'Open “Slimly Compressed”', '還沒有處理過檔案。': 'Nothing processed yet.',
+    '已經很精簡，沒另存': 'already lean, not saved', '略過：不是 PDF 或照片': 'skipped: not a PDF or photo', '略過：已經是壓好的檔': 'skipped: already compressed',
+    '略過：有電子簽章（要壓請拖進主視窗）': 'skipped: digitally signed (drag into the main window to compress)', '略過：有可填寫的表單（要壓請拖進主視窗）': 'skipped: has form fields (drag into the main window)',
+    '略過：{w}': 'skipped: {w}', '沒壓成：{w}': 'not compressed: {w}', '還是超過目標': 'still over target',
+    '這已經是最小能到的版本（{lv}）。': 'This is the smallest it can get ({lv}).',
+    '有透明的 PNG 只能縮尺寸；原尺寸存一次不會更小。': 'Transparent PNGs can only be resized; at full size they won’t get smaller.', '壓前 {b} → 壓後 {a}（大了 {p}%）': 'Before {b} → after {a} ({p}% larger)',
+    '把 PDF 或照片拖進來': 'Drop a PDF or photo here', '先放一份 PDF 或照片進來': 'Add a PDF or photo first', '先放一份 PDF 或照片進來，或按「選擇檔案」。': 'Add a PDF or photo first, or press Choose.',
+    '{n} 張照片': '{n} photos', '{n} 份檔案': '{n} files', '{lv}…': '{lv}…', '長邊縮到 {d}': 'Long edge {d}',
+    'HEIC 會轉成 JPEG：Windows、Email 都打得開。': 'HEIC becomes JPEG so Windows and email can open it.',
+    '照片的位置資訊（GPS）會拿掉（設定裡可以改）。': 'Photo location (GPS) will be removed (change in Settings).', '照片的位置資訊（GPS）照留（設定裡可以拿掉）。': 'Photo location (GPS) is kept (you can remove it in Settings).',
+    '轉成 JPEG，大家都打得開・比原檔大 {p}%': 'Converted to JPEG so anyone can open it · {p}% larger', '這張已經很精簡': 'This photo is already lean',
+    '常見原因：手機、相機存的 JPEG 本來就壓過了。': 'Common reason: phone and camera JPEGs are already compressed.',
+    '這不是 PDF 或照片': 'Not a PDF or photo', 'Slimly 壓 PDF 與照片（HEIC、JPEG、PNG）。<br>Word、Keynote、PowerPoint 請先「輸出成 PDF」再拖進來。': 'Slimly compresses PDFs and photos (HEIC, JPEG, PNG).<br>Export Word, Keynote or PowerPoint files to PDF first.',
+    '資料夾裡沒有 PDF 或照片': 'No PDFs or photos in this folder', '不是 PDF 或照片': 'not a PDF or photo', '沒有 PDF 或照片': 'no PDFs or photos',
+    '照片的位置資訊（GPS）': 'Photo location (GPS)', '照留': 'Keep', '拿掉': 'Remove', '壓好的照片不帶拍攝地點；原檔不動。': 'Compressed photos carry no location; originals stay as they are.',
+    '跟原檔一樣帶著拍攝地點；要寄給別人可以拿掉。': 'Same as the original, location included; remove it before sending to others.',
+    '前後對照': 'Before / after', '壓前': 'Before', '壓後': 'After', '正在畫這一頁…': 'Rendering this page…', '取消': 'Cancel',
+    '拖中間的黃線比；放大之後拖畫面移動': 'Drag the yellow line to compare; drag the page to move when zoomed', '打開壓好的檔': 'Open compressed file',
+    '壓前 {b} → 壓後 {a}（小了 {p}%）': 'Before {b} → after {a} ({p}% smaller)', '第 {p} 頁 / {n}': 'Page {p} / {n}', '這一頁畫不出來': 'This page can’t be rendered',
+    '對照不了：找不到壓前或壓後的檔': 'Can’t compare: the original or the compressed file is missing',
+    '估算中：試壓幾頁，看每一級大概多大…': 'Estimating: test-compressing a few pages…', '預估壓了幾乎不會變小：這份已經很精簡。': 'Estimate: it won’t get much smaller — this file is already lean.',
+    '預估約 {s}（{lv}）：{t} 以下，寄得出去。': 'Estimate: about {s} ({lv}) — under {t}, ready to send.', '預估約 {s}（{lv}）。': 'Estimate: about {s} ({lv}).',
+    '預估最小約 {m}，還是超過 {t}；壓完可以「拆開寄」。': 'Estimate: about {m} at the smallest — still over {t}; you can split it after compressing.',
+    '預估＝整份試壓過的大小。': 'Estimate = the whole file test-compressed.', '預估＝抽 {n} 頁試壓推算，誤差約兩成內。': 'Estimate = {n} sample pages test-compressed; within about 20%.',
+    '壓不到': 'Too big', '變不小': 'No gain',
+    '把 PDF 拖進來': 'Drop a PDF here', '選擇檔案': 'Choose', '最近壓的': 'Recent', '設定': 'Settings', '好': 'Done',
+    '點一下＝在 Finder 顯示': 'Click to show in Finder', '清除這份紀錄': 'Clear this list',
+    '壓到多小': 'How small', '自訂': 'Custom', '壓好的放哪': 'Where to save', '原檔旁邊': 'Next to the original', '固定資料夾': 'One folder', '更改': 'Change',
+    '原檔': 'Originals', '留在原處': 'Leave in place', '收進「未壓縮備份」': 'Move to “Uncompressed Originals”',
+    '外觀': 'Appearance', '跟系統': 'System', '淺色': 'Light', '深色': 'Dark', '語言': 'Language',
+    'Slimly 能做什麼': 'What Slimly does', '重看一次設定精靈': 'Run the setup again', '關於 Slimly': 'About Slimly', '開源元件聲明': 'Open-source notices', '使用規範': 'Terms of use', '隱私與權限': 'Privacy & permissions', '授權（AGPL-3.0）': 'License (AGPL-3.0)', '只處理你有權處理的檔案': 'Only work on files you have the right to',
+    '<b>畫質優先，剛好就停</b><br>先把用無損方式存的照片換成高品質 JPEG——<br>看不出差別、體積大減。不夠小才降畫質，<br>最後才降解析度。壓到目標就停，不一次砍到底。':
+      '<b>Quality first, stop when it fits</b><br>Photos stored losslessly become high-quality JPEGs —<br>no visible difference, far smaller. Only if that isn’t enough<br>does quality step down, and resolution last. It stops at your target.',
+    '<b>不會出事</b><br>原檔不覆蓋、不刪除。壓完核對頁數，對不上就不交。<br>沒變小就不另存——原檔就是最好的版本。':
+      '<b>Nothing breaks</b><br>Originals are never overwritten or deleted. Page counts are checked;<br>a mismatch is never handed over. No gain, no new file —<br>the original is already the best version.',
+    '<b>壓不動、壓不好的時候會直說</b><br>圖本來就壓過的檔能省的有限，Slimly 會直接說；<br>壓完每一頁都跟原檔比一次，畫面對不上就不交，<br>原檔永遠留著。':
+      '<b>Straight answers</b><br>Files whose images are already compressed have little to give — Slimly says so.<br>Every page is compared with the original; if it doesn’t match, nothing is saved<br>and the original always stays.',
+    '<b>有密碼、有簽章、有表單</b><br>有密碼的先解鎖再壓（Slimly 不破解）。<br>有電子簽章或可填寫表單的會先問你：<br>壓了簽章會失效、欄位不能再填。':
+      '<b>Passwords, signatures, forms</b><br>Unlock password-protected PDFs first — Slimly never cracks them.<br>Signed PDFs and fillable forms: Slimly asks first,<br>because compressing voids signatures and makes fields unfillable.',
+    '<b>順手</b><br>一次拖很多份、或整個資料夾，會一份一份排隊壓；<br>壓縮中還能再丟。按中間那顆可以停，停下來的下次接著壓。<br>壓完可以直接分享；壓不到目標的，能拆成幾份分開寄。<br>全部在這台電腦上處理，不上傳。':
+      '<b>Handy</b><br>Drop many files or a whole folder and they queue up;<br>you can keep adding while it works. Press the middle button to stop — it picks up where it left off.<br>Share straight from the result; a file that can’t get under the target can be split into parts that can.<br>Everything stays on this Mac.',
+    '把 PDF 壓到寄得出去，畫質幾乎看不出差別。<br>三步設定，一分鐘。': 'Shrink PDFs until they send — with no visible loss.<br>Three quick steps, one minute.',
+    '全部在這台電腦上處理，不上傳': 'Everything happens on this Mac — nothing is uploaded',
+    '原檔不會被覆蓋，也不會被刪': 'Originals are never overwritten or deleted',
+    '剛好壓到目標就停，不一次砍到底': 'It stops as soon as the file fits',
+    '通常寄去哪': 'Where do they usually go?', 'Slimly 會壓到這個大小以下，剛好到就停。<br>主畫面隨時可以換。': 'Slimly shrinks files below this size and stops there.<br>Change it anytime on the main screen.',
+    '原檔永遠不動；壓好的另存一份。': 'Originals stay put; the smaller copy is saved separately.',
+    '放在原檔旁邊': 'Next to the original', '檔名多「（已壓縮）」，一眼分得出來': 'Named “… (compressed)” so you can tell them apart',
+    '固定放一個資料夾': 'Always in one folder', '品牌提案.pdf': 'Proposal.pdf', '品牌提案（已壓縮）.pdf': 'Proposal (compressed).pdf',
+    '怎麼用': 'How to use it', '三種放法，哪種順手用哪種。': 'Three ways in — use whichever is handy.',
+    '把 PDF 拖進視窗，或拖到 Dock 上的 Slimly': 'Drop PDFs on this window, or on Slimly in the Dock',
+    '在 Finder 對 PDF 按右鍵 →「服務」→「用 Slimly 壓縮」': 'In Finder, right-click a PDF → Services → “Compress with Slimly”',
+    '看不到的話在「快速動作」或「服務」底下': 'Look under Quick Actions or Services',
+    '一次拖一整個資料夾也行，會一份一份壓': 'Drop a whole folder — they’re done one by one',
+    '上一步': 'Back', '先跳過': 'Skip',
+    // 動態的句子
+    '壓縮': 'Compress', '停止': 'Stop', '再試一次': 'Try again', '接著壓': 'Resume', '清掉': 'Clear',
+    '開始設定': 'Get started', '好了，開始用': 'Done — start using Slimly', '下一步': 'Next', '好了，開始壓': 'Done — compress now',
+    '先放一份 PDF 進來': 'Add a PDF first',
+    '拖進這個視窗、拖到 Dock 上的 Slimly，<br>或按上面的「選擇檔案」。整個資料夾也可以。': 'Drop it on this window or on Slimly in the Dock,<br>or press Choose above. Whole folders work too.',
+    '放開就好': 'Let go to add', '讀取中…': 'Reading…',
+    '可以壓縮了': 'Ready to compress', '{n} 份可以壓縮了': '{n} files ready',
+    '{p} 頁・{s}': '{p} pages · {s}', '{n} 份 PDF': '{n} PDFs', '共 {s}': '{s} total', '{a} 等': '{a} and more',
+    '壓到 {t} 以下；畫質優先，剛好壓到就停。': 'Below {t} — quality first, stops as soon as it fits.',
+    '不限大小：只做看不出差別的那一級。': 'No size limit: only the visually lossless step.',
+    '不限': 'No limit',
+    '寄 Email（Gmail 上限 25 MB）': 'Email (Gmail’s limit is 25 MB)', '公司信箱、多數線上表單': 'Work email, most web forms',
+    '報名、履歷、政府表單常見': 'Applications, résumés, government forms', '只做看不出差別的那一級': 'Only the visually lossless step',
+    '寄 Email': 'Email', '公司信箱、線上表單': 'Work email, web forms', '報名、履歷、政府表單': 'Applications, résumés, gov forms', '不限大小': 'No size limit',
+    '{t} 以下': 'Under {t}',
+    '這份本來就在 {t} 以下，壓了會更小。': 'This one is already under {t} — it will still get smaller.',
+    '有 {n} 份看起來已經壓過（再壓通常小不了多少）。': '{n} look already compressed (little left to gain).',
+    '壓縮中': 'Compressing', '第 {i}／{n} 份': 'File {i} of {n}',
+    '{lv}・第 {p}／{n} 頁': '{lv} · page {p} of {n}', '還不夠小，換「{lv}」再壓一次': 'Not small enough yet — trying “{lv}”',
+    '不到 1 分鐘': 'under a minute', '大約還要 {n} 分鐘': 'about {n} min left',
+    '可以先去忙，好了會通知你。': 'Go do something else — you’ll get a notification.',
+    '加入排隊：還有 {n} 份': 'Added to the queue — {n} to go', '這份已經在清單裡了': 'That one is already in the list',
+    '小了 {p}%・{lv}': '{p}% smaller · {lv}', '存成「{f}」': 'Saved as “{f}”', '原檔收進「{d}」': 'Original moved to “{d}”',
+    '{t} 以下，寄得出去': 'Under {t} — sendable', '畫質看不出差別': 'No visible loss', '畫質幾乎看不出差別': 'Nearly no visible loss',
+    '畫質略降': 'Slightly lower quality', '解析度降到 {d}': 'Resolution lowered to {d}',
+    '在 Finder 顯示': 'Show in Finder', '打開看看': 'Open', '拖出去就是檔案': 'Drag it out — it’s the file',
+    '原檔有些地方不標準，Slimly 修補過；壓完請打開看一下。': 'The original had some non-standard parts that were repaired — give the result a quick look.',
+    '還是超過 {t}': 'Still over {t}',
+    '這是畫質不犧牲的版本；最小能到 {m}，但畫質會明顯變差。': 'This version keeps the quality; {m} is possible, but looks clearly worse.',
+    '要寄 Email：按「拆開寄」，每份都在 {t} 以下。': 'To email it, press Split to send — each part stays under {t}.',
+    '分享…': 'Share…', '拆開寄': 'Split to send', '拆開還太大的 {n} 份': 'Split the {n} still too big',
+    '正在拆開': 'Splitting', '存好第 {i}／{n} 份': 'Saved part {i} of {n}', '先量每一頁有多大…': 'Measuring each page…',
+    '拆不開': 'Couldn’t split', '整份壓好的那一份還在，原檔也沒動。': 'The whole compressed file is still there; the original is untouched.',
+    '拆出來的畫面跟整份的對不上，所以沒交出去。': 'The parts didn’t match the whole file, so they weren’t saved.',
+    '存不進去，或這份讀不出來。': 'They couldn’t be saved, or the file couldn’t be read.',
+    '拆成 {n} 份了': 'Split into {n}', '有一頁單頁就超過 {t}，那一份還是太大。': 'One page alone is over {t}, so that part is still too big.',
+    '每份都在 {t} 以下，可以分開寄。': 'Each part is under {t} — send them separately.', '第 {a}–{b} 頁': 'pages {a}–{b}',
+    '整份的那一份也留著。': 'The whole file is kept too.',
+    '這份已經很精簡': 'Already lean',
+    '壓了只小 {p}%，沒另存一份。<br>原檔就是最好的版本。': 'Only {p}% smaller, so no new file.<br>The original is already the best version.',
+    '壓了幾乎沒變小，沒另存一份。<br>原檔就是最好的版本。': 'Barely any smaller, so no new file.<br>The original is already the best version.',
+    '壓了反而變大，沒另存一份。<br>原檔就是最好的版本。': 'It would get bigger, so no new file.<br>The original is already the best version.',
+    '{n} 份都壓好了': 'All {n} done', '{a} 份壓好了': '{a} done', '這次沒有壓出新檔': 'Nothing new was saved',
+    '共 {b} → {a}，省下 {s}（{p}%）。': '{b} → {a} in total, {s} saved ({p}%).',
+    '在 Finder 顯示全部': 'Show all in Finder', '重試沒壓成的': 'Retry the failed ones',
+    '已停止': 'Stopped', '壓好的 {a} 份留著；沒壓完的原檔都沒動。<br>再按一次中間那顆，接著壓剩下的 {n} 份。': '{a} finished files are kept; nothing unfinished was touched.<br>Press the middle button to resume the remaining {n}.',
+    '沒壓完的原檔都沒動。<br>再按一次中間那顆，接著壓剩下的 {n} 份。': 'Nothing unfinished was touched.<br>Press the middle button to resume the remaining {n}.',
+    '這份壓不了': 'Couldn’t compress this', '壓縮引擎讀不懂這份檔案的某些內容。<br>原檔沒動。': 'The engine couldn’t read part of this file.<br>The original is untouched.',
+    '卡住了': 'It got stuck', '超過 {s} 秒沒有進度，已經停止。<br>原檔沒動。': 'No progress for {s} seconds, so it was stopped.<br>The original is untouched.',
+    '壓完頁數對不上': 'Page count didn’t match', '{a} 頁變成 {b} 頁，所以沒交出去。<br>原檔沒動。': '{a} pages became {b}, so it wasn’t saved.<br>The original is untouched.',
+    '存不進這個資料夾': 'Can’t save to this folder', '「{d}」是唯讀的，或 Slimly 沒有權限。<br>原檔沒動。': '“{d}” is read-only, or Slimly isn’t allowed to write there.<br>The original is untouched.',
+    '改存到下載項目': 'Save to Downloads instead', '選別的資料夾…': 'Choose another folder…',
+    '磁碟空間不夠': 'Not enough disk space', '暫存要放得下原檔的兩倍大小。<br>清出一些空間再試一次。原檔沒動。': 'Temporary space for about twice the original is needed.<br>Free some space and try again. The original is untouched.',
+    '看細節': 'Details',
+    '這不是 PDF': 'That’s not a PDF', 'Slimly 只壓 PDF。Word、Keynote、PowerPoint<br>請先「輸出成 PDF」再拖進來。': 'Slimly only compresses PDFs. Export from Word, Keynote or<br>PowerPoint as PDF first, then drop it here.',
+    '這份是空的': 'This file is empty', '沒有內容（0 KB）。': 'It has no content (0 KB).',
+    '這份打不開': 'Can’t open this one', '不是完整的 PDF（可能下載到一半，<br>或副檔名被改過）。': 'It isn’t a complete PDF (maybe a partial download,<br>or a renamed file).',
+    '讀不到這份': 'Can’t read this one', '沒有權限讀取這個檔案。': 'Slimly isn’t allowed to read this file.',
+    '這份有密碼': 'This one has a password', '先用「預覽程式」打開、輸入密碼，<br>再「輸出」一份沒有密碼的 PDF。Slimly 不破解密碼。': 'Open it in Preview, enter the password,<br>then Export a copy without one. Slimly never cracks passwords.',
+    '這份有權限保護': 'This one is protected', '作者限制了修改；壓縮會拿掉這層保護，<br>所以 Slimly 不動它。': 'Its author restricted changes, and compressing would remove that,<br>so Slimly leaves it alone.',
+    '資料夾裡沒有 PDF': 'No PDFs in that folder', '「{f}」裡找不到 PDF 檔。': 'No PDF files in “{f}”.',
+    '還有 {n} 個也沒收：{w}': '{n} more not added: {w}',
+    '略過 {n} 個：{w}': 'Skipped {n}: {w}',
+    '不是 PDF': 'not PDF', '空檔': 'empty', '打不開': 'unreadable', '有密碼': 'password', '有權限保護': 'protected', '重複': 'duplicate', '沒有 PDF': 'no PDFs', '有簽章': 'signed', '讀不到': 'no access',
+    '這份有電子簽章': 'This one is digitally signed', '有 {n} 份有電子簽章': '{n} are digitally signed',
+    '壓縮要重寫整份檔案，簽章會失效<br>（看得到簽名，但驗證不過）。': 'Compressing rewrites the whole file, which voids the signature<br>(it still shows, but no longer verifies).',
+    '照樣壓': 'Compress anyway', '不要壓': 'Leave it', '用「預覽程式」打開': 'Open in Preview',
+    '壓好了，正在核對每一頁的畫面': 'Done — checking every page against the original',
+    'Illustrator／Photoshop 存的檔：壓完只能看、印，<br>不能再用原軟體編輯（原檔會留著）。': 'Saved from Illustrator/Photoshop: the result can be viewed and printed,<br>but no longer edited in that app (the original stays).',
+    '常見原因：圖本來就壓過（Keynote、Canva、iLovePDF 處理過的檔），<br>或整份幾乎都是文字與向量圖。': 'Usually the images were already compressed (Keynote, Canva, iLovePDF),<br>or the file is mostly text and vector art.',
+    '壓完的畫面跟原檔對不上': 'The result doesn’t match the original', '第 {p} 頁有 {x}% 的地方變了，所以沒交出去。<br>原檔沒動。': '{x}% of page {p} changed, so it wasn’t saved.<br>The original is untouched.',
+    '常見原因：透明效果（Canva、Illustrator 的混合模式），<br>或 Mac 的預覽程式畫不出壓完的寫法。': 'Usually: transparency effects (Canva, Illustrator blend modes),<br>or constructs that macOS Preview can’t draw.',
+    '畫面對不上': 'doesn’t match', '再往下壓，畫面會明顯變糊，所以給你畫質不犧牲的這一版。': 'Going smaller would visibly blur it, so this is the version that keeps the quality.',
+    '有 {n} 份有電子簽章或表單': '{n} are signed or have forms', '有 {n} 份有可填寫的表單': '{n} have fillable forms', '這份有可填寫的表單': 'This one has a fillable form',
+    '壓縮後欄位不能再填寫，<br>已經填的內容也可能不見。': 'After compressing, its fields can’t be filled in,<br>and filled-in answers may disappear.',
+    '壓縮後欄位不能再填寫，<br>已經填的內容也可能不見。所以沒壓。': 'Compressing would make its fields unfillable,<br>and filled-in answers may disappear — so it was left alone.',
+    '有表單欄位：壓縮後不能再填寫（你已經同意過）。': 'Has form fields: they won’t be fillable afterwards (you agreed).', '有表單': 'form',
+    '還沒有壓過東西。': 'Nothing yet.', '原檔已不在': 'file moved or deleted',
+    '版本 {v}（{b}）・引擎 {e}': 'Version {v} ({b}) · Engine {e}',
+    '收進「未壓縮備份」時，壓好的那份用原本的檔名。': 'When moved, the smaller copy takes the original name.',
+    '另存一份，原檔不動。': 'A smaller copy is saved; the original stays.',
+    '放在「{d}」': 'Saved in “{d}”', '跟原檔同一個資料夾': 'In the same folder as the original',
+    '沒壓成': 'failed', '沒變小': 'no gain', '還是超過目標': 'still over',
+    '先放一份 PDF 進來，或按「選擇檔案」。': 'Add a PDF first, or press Choose.',
+    // 編輯與轉檔（2.1）
+    '編輯・轉檔': 'Edit & Convert', '編輯與轉檔': 'Edit & Convert', '最近做的': 'Recent', '壓好的、用工具做出來的，點一下在 Finder 顯示': 'Compressed files and tool results — click to show in Finder',
+    '編輯 PDF': 'Edit PDF', '加字、改字、簽名、塗黑、標註、排頁、合併、填表單、頁碼、浮水印、翻譯、匯出': 'Add or change text, sign, redact, annotate, reorder, merge, fill forms, page numbers, watermark, translate, export',
+    '轉檔': 'Convert', 'Word、PPT、Excel、圖片、網頁 ↔ PDF；手機拍的文件照變成 PDF': 'Word, PowerPoint, Excel, images, web pages ↔ PDF; phone photos of documents become PDFs',
+    '比較兩版': 'Compare versions', '找出兩份 PDF 哪裡改了': 'Find what changed between two PDFs',
+    '壓縮在主畫面。工具一次可以選好幾份。<br>全部在這台 Mac 上做，不上傳。': 'Compression is the main screen. Tools take several files at once.<br>Everything stays on this Mac.',
+    '<b>編輯器與轉檔</b><br>左下角「編輯・轉檔」：PDF 編輯器（加字、改字、簽名、塗黑、<br>標註、排頁、合併、填表單、頁碼、浮水印、翻譯、匯出），<br>轉檔（Word、PPT、Excel、圖片、網頁 ↔ PDF），比較兩版。<br>一樣全部在這台 Mac 上做。':
+      '<b>Editor and converter</b><br>“Edit & Convert” at the bottom left: a PDF editor (add and change text, sign, redact,<br>annotate, reorder, merge, fill forms, page numbers, watermark, translate, export),<br>a converter (Word, PowerPoint, Excel, images, web pages ↔ PDF) and version compare.<br>All on this Mac.',
+    '改字、簽名、合併、轉檔……在左下角「編輯・轉檔」': 'Edit, sign, merge, convert… under “Edit & Convert” at the bottom left',
+    '要改字、簽名、塗黑、合併、轉檔：左下角「編輯・轉檔」。': 'To edit, sign, redact, merge or convert: “Edit & Convert”, bottom left.',
+    '用編輯器打開': 'Open in Editor', '合併起來用編輯器打開': 'Combine and open in Editor', '轉成 {t}': 'Convert to {t}', '轉成 PDF': 'Convert to PDF',
+    '把要轉的檔拖進來': 'Drop the files to convert', '有密碼：先用編輯器打開、輸入密碼': 'Password-protected — open it in the Editor first',
+    '打不開：用編輯器打開會試著修復': 'Unreadable — the Editor can try to repair it', '放要轉的檔，或貼網址': 'Add files, or paste a web address',
+    'PDF 跟其他檔分開轉：PDF 是轉出去，其他檔是轉成 PDF': 'Convert PDFs and other files separately', '這種檔轉不了': 'This kind of file can’t be converted',
+    '「{f}」有密碼：先用編輯器打開、輸入密碼': '“{f}” is password-protected — open it in the Editor first', '「{f}」打不開：用編輯器打開會試著修復': '“{f}” can’t be read — the Editor can try to repair it',
+    '把手機拍的文件照片拖進來': 'Drop photos of documents here', '把照片或圖片拖進來': 'Drop photos or images here', '把 Word 檔拖進來': 'Drop Word files here',
+    '把簡報檔拖進來': 'Drop presentations here', '把試算表拖進來': 'Drop spreadsheets here', '把 .html 檔拖進來': 'Drop .html files here',
+    '再放新版進來': 'Now add the new version', '先放舊版，再放新版': 'Add the old version, then the new one',
+    '把 PDF 拖進來（可以很多份）': 'Drop PDFs here (as many as you like)', '{p} 頁': '{p} pages', '有開檔密碼': 'Password-protected', '有限制': 'Restricted',
+    '有密碼：先用「PDF 解鎖」': 'Password-protected — unlock it first', '打不開：先用「修復 PDF」': 'Unreadable — try Repair PDF first', '拿掉': 'Remove',
+    '或用 iPhone 直接拍（接力相機）': 'Or shoot it with your iPhone (Continuity Camera)', '舊版、新版對調': 'Swap old and new',
+    '用預覽程式打開（畫線、加框、改原本的字）': 'Open in Preview (draw, box, change existing text)', '全部還原': 'Reset', '清除選取': 'Clear selection',
+    '轉 90°': 'Rotate 90°', '拿掉這頁': 'Remove this page', '選一張圖…': 'Choose an image…', '讀表單欄位…': 'Reading the form fields…',
+    '你的簽名': 'Your signature', '重簽': 'Sign again', '改用一張簽名圖…': 'Use a signature image…', '在這裡簽名': 'Sign here', '用觸控板或滑鼠簽': 'Sign with the trackpad or mouse',
+    '先放兩份：舊版、新版': 'Add two files: old and new', '至少要 {n} 份': 'Needs at least {n} files', '先放檔案進來': 'Add a file first', '貼網址，或放 .html 檔': 'Paste a web address or add .html files',
+    '「{f}」有密碼：先用「PDF 解鎖」': '“{f}” is password-protected — unlock it first', '「{f}」打不開：先用「修復 PDF」': '“{f}” can’t be read — try Repair PDF first',
+    '這份本來就沒有密碼或限制': 'This file has no password or restrictions', '先填「{l}」': 'Fill in “{l}” first', '密碼至少 4 個字': 'Use at least 4 characters',
+    '兩次打的密碼不一樣': 'The passwords don’t match', '選要找的個資，或打要塗的字': 'Pick what to find, or type words to redact', '至少留一頁': 'Keep at least one page',
+    '先在上面簽名': 'Sign above first', '這份沒有可以填的欄位': 'This file has no fillable fields', '先填至少一個欄位': 'Fill in at least one field',
+    '打要加的字，或選一張圖': 'Type some text or choose an image', '正在做': 'Working', '沒做成': 'Didn’t work', '原檔都沒動。': 'The originals are untouched.',
+    '好了，{n} 個檔': 'Done — {n} files', '好了': 'Done', '還有 {n} 個': '{n} more', '打開資料夾': 'Open folder', '拷貝摘要': 'Copy summary', '拷貝好了': 'Copied',
+    '再做一份': 'Do another', '最多 {n} 份': 'Up to {n} files', '還在做，先按「停止」': 'Still working — press Stop first',
+  };
+  const tr = (s, v) => { let o = (LANG === 'en' && EN[s] !== undefined) ? EN[s] : s;
+    if (v) o = o.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? ''); return o; };
+  function translate() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      if (el.dataset.zh === undefined) el.dataset.zh = el.innerHTML.trim();
+      el.innerHTML = tr(el.dataset.zh);
+    });
+    document.documentElement.lang = LANG === 'en' ? 'en' : 'zh-Hant';
+  }
+
+  const ICON = {
+    ok:   '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+    x:    '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+    dash: '<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>',
+    warn: '<svg viewBox="0 0 24 24"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg>',
+    wait: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    pdf:  '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>',
+    stack:'<svg viewBox="0 0 24 24"><path d="M8 3h7l4 4v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M4 7v12a2 2 0 0 0 2 2h9"/></svg>',
+    down: '<svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
+  };
+
+  // ── 大小與時間，寫給人看 ──
+  const MB = 1048576;
+  const size = b => { const m = b / MB; if (m >= 100) return m.toFixed(0) + ' MB'; if (m >= 1) return m.toFixed(1) + ' MB'; return Math.max(1, Math.round(b / 1024)) + ' KB'; };
+  const pct = (b, a) => Math.max(0, Math.round((1 - a / b) * 100));
+  // 卡片第二行：PDF＝幾頁・多大；照片＝寬×高・多大
+  const OFMT = { DOCX: 'Word', PPTX: 'PowerPoint', XLSX: 'Excel' };
+  const cardLine = (o, b) => o.kind === 'image' ? (o.w && o.h ? `${o.w}×${o.h}・` : '') + size(b)
+                          : o.kind === 'office' ? [OFMT[o.fmt] || o.fmt, o.fmt === 'PPTX' ? tr('{p} 張投影片', { p: o.pages }) : '', tr('{m} 張圖', { m: o.w || 0 }), size(b)].filter(Boolean).join('・')
+                          : tr('{p} 頁・{s}', { p: o.pages, s: size(b) });
+  const etaText = s => s < 0 ? '' : s < 60 ? tr('不到 1 分鐘') : tr('大約還要 {n} 分鐘', { n: Math.ceil(s / 60) });
+  const tgtText = mb => mb > 0 ? mb + ' MB' : tr('不限');
+
+  // ── 狀態 ──
+  let mode = 'idle';           // idle｜ask｜run｜done｜splitting（正在拆開寄）｜parts（拆好了）
+  let staged = [];             // 放進來還沒壓的
+  let prefs = { target: 25, place: 'beside', original: 'keep', folder: '', theme: 'system', lang: 'system' };
+  let prog = null;             // 最近一次 progress
+  let finished = [];           // 這一批已經做完的（item 事件）
+  let total = 0;
+  let done = null;             // done 事件
+  let est = null;              // 壓前預估：{ id, state: run｜done｜failed, bytes: 原檔, levels: [Q1…Q6 預估], exact, sample }
+  let cmp = null;              // 前後對照：{ id, state: load｜on｜closed｜cancelled, token, page, pages, zoom, split, tx, ty }
+  let explain = null;          // 放進來的全被略過時，要解釋哪一個（{code, name, more}）
+  let askNames = [], askKinds = [];
+  let split = null;            // 拆開寄進行中（splitting 事件）
+  let parts = null;            // 拆好了（split 事件）
+  let showDetail = false;
+
+  let toastT = 0;
+  const toast = t => { $('toast').textContent = t; $('toast').classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('on'), 4000); };
+  const prog2 = f => { if (!isFinite(f)) return; const p = Math.max(0, Math.min(1, f)) * 100; $('arc').style.setProperty('--p', p); $('head').style.setProperty('--p', p); };
+  const nudge = () => { const w = $('what'); w.classList.remove('nudge'); void w.offsetWidth; w.classList.add('nudge'); };
+
+  const SKIPWORD = { notPDF: '不是 PDF、照片或 Office 檔', legacy: '舊格式', officeLocked: '有密碼', officeSigned: '有數位簽章', officeOle: '有 OLE 物件', officeMacro: '有巨集', officeDamaged: '打不開', empty: '空檔', damaged: '打不開', unreadable: '讀不到', locked: '有密碼', protected: '有權限保護', duplicate: '重複', folderEmpty: '沒有 PDF、照片或 Office 檔', signed: '有簽章', form: '有表單' };
+  function skipSummary(sk) {
+    const w = sk.slice(0, 3).map(s => s.name + '（' + tr(SKIPWORD[s.code] || s.code) + '）').join('、') + (sk.length > 3 ? '…' : '');
+    return tr('略過 {n} 個：{w}', { n: sk.length, w });
+  }
+  const TARGETS = [
+    { mb: 25, name: '寄 Email', cap: '寄 Email（Gmail 上限 25 MB）' },
+    { mb: 10, name: '公司信箱、線上表單', cap: '公司信箱、多數線上表單' },
+    { mb: 5,  name: '報名、履歷、政府表單', cap: '報名、履歷、政府表單常見' },
+    { mb: 0,  name: '不限大小', cap: '只做看不出差別的那一級' },
+  ];
+  // 壓前預估：選這個目標會壓到哪一級、多大（跟 Engine 的階梯同一套：第一個壓到目標以下的那級；第二級跟第一級差不到 1% 就跳過第三級；
+  // 都壓不到＝交第一級；壓完沒小到 97% 以下＝不另存）。還在算、又還沒有一級壓得到＝結論未定
+  function predict(targetMB) {
+    if (!est || !est.levels || est.levels[0] == null) return null;
+    const L = est.levels, T = targetMB > 0 ? targetMB * MB : 0, skip3 = L[1] != null && L[1] >= L[0] * 0.99;
+    let pick = 0, reached = true;
+    if (T) {
+      reached = false;
+      for (let i = 0; i < L.length; i++) { if (L[i] == null || (i === 2 && skip3)) continue; if (L[i] <= T) { pick = i; reached = true; break; } }
+      if (!reached && est.kind !== 'pdf' && est.state === 'done') pick = L.reduce((b, x, i) => (x != null && x < L[b] ? i : b), 0);   // 照片、Office 檔壓不到：交最小的
+    }
+    const known = L.filter(x => x != null);
+    return { pick, reached, bytes: L[pick], best: Math.min(...known), final: est.state === 'done' || reached, noGain: est.fmt !== 'HEIC' && L[pick] >= est.bytes * 0.97 };   // HEIC 一律轉 JPEG 交出
+  }
+  window.__est = () => est && { state: est.state, levels: est.levels, exact: !!est.exact, sample: (est.sample || []).length, pick: (predict(prefs.target) || {}).pick ?? null };
+  function segTargets(el, withEst) {
+    const list = TARGETS.map(t => t.mb);
+    const cur = prefs.target;
+    const all = list.includes(cur) ? list : [cur, ...list];
+    const cap = mb => {
+      if (!withEst || !est || est.state === 'failed') return '';
+      const p = predict(mb);
+      if (!p || !p.final) return '<small>…</small>';
+      if (p.noGain) return `<small class="no">${esc(tr('變不小'))}</small>`;
+      return p.reached ? `<small>${esc(size(p.bytes))}</small>` : `<small class="no">${esc(tr('壓不到'))}</small>`;
+    };
+    el.innerHTML = all.map(mb => `<button data-mb="${mb}" class="${mb === cur ? 'on' : ''}${withEst && est ? ' est' : ''}">${esc(tgtText(mb))}${cap(mb)}</button>`).join('');
+    el.querySelectorAll('button').forEach(b => b.onclick = () => { send('setTarget', { mb: +b.dataset.mb }); prefs.target = +b.dataset.mb; paint(); paintSettings(); });
+  }
+
+  // ── 畫面＝(mode, 有沒有檔, 結果) 的函數；所有顯示切換只走這裡 ──
+  function paint() {
+    const has = staged.length > 0;
+    let view = mode === 'run' || mode === 'splitting' ? 'run' : mode === 'ask' ? 'ask' : mode === 'done' ? 'done'
+             : mode === 'parts' ? 'parts' : has ? 'ready' : explain ? 'err' : 'empty';
+    document.body.dataset.state = mode === 'ask' ? 'idle' : mode === 'splitting' ? 'run' : mode === 'parts' ? 'done' : mode;
+    document.body.dataset.v = view;
+    // 預設全部藏起來，各狀態自己打開
+    ['targetSeg', 'proof', 'list', 'detail', 'acts'].forEach(id => $(id).classList.add('hide'));
+    $('note').innerHTML = '';
+    let o = 'off', label = tr('壓縮');
+
+    // ① 什麼
+    const card = has || view === 'run' || view === 'done' || view === 'parts';
+    $('what').className = 'what ' + (card ? 'card' : 'slot');
+    $('cardIcon').classList.remove('drag');
+    $('cardIcon').innerHTML = ICON.pdf;
+    if (mode === 'splitting' && split) {
+      $('cardIcon').innerHTML = ICON.stack;
+      $('cardTitle').textContent = split.name || '';
+      $('cardSub').textContent = '';
+    } else if (view === 'parts' && parts) {
+      paintPartsCard();
+    } else if (view === 'run' && prog) {
+      $('cardTitle').textContent = prog.name;
+      $('cardSub').textContent = prog.kind === 'image' ? size(prog.bytes) : tr('{p} 頁・{s}', { p: prog.pages, s: size(prog.bytes) });
+    } else if (view === 'done' && done) {
+      paintDoneCard();
+    } else if (has) {
+      if (staged.length === 1) {
+        $('cardTitle').textContent = staged[0].name;
+        $('cardSub').textContent = cardLine(staged[0], staged[0].bytes);
+      } else {
+        $('cardIcon').innerHTML = ICON.stack;
+        const sum = staged.reduce((a, s) => a + s.bytes, 0);
+        $('cardTitle').textContent = batchTitle(staged);
+        $('cardSub').textContent = tr('共 {s}', { s: size(sum) }) + '・' + tr('{a} 等', { a: staged[0].name });
+      }
+    }
+    $('hint').textContent = document.body.classList.contains('dropping') ? tr('放開就好') : document.body.classList.contains('reading') ? tr('讀取中…') : tr('把 PDF、照片或 Office 檔拖進來');
+
+    // ③ 結果區
+    if (view === 'empty') {
+      set(tr('先放一份 PDF 或照片進來'), tr('拖進這個視窗、拖到 Dock 上的 Slimly，<br>或按上面的「選擇檔案」。整個資料夾也可以。'));
+      $('note').innerHTML = tr('要改字、簽名、塗黑、合併、轉檔：左下角「編輯・轉檔」。');
+    } else if (view === 'err') {
+      paintExplain();
+    } else if (view === 'ready') {
+      o = 'on';
+      let line = prefs.target > 0 ? tr('壓到 {t} 以下；畫質優先，剛好壓到就停。', { t: tgtText(prefs.target) })
+                                  : tr('不限大小：只做看不出差別的那一級。');
+      const one = staged.length === 1 && est && est.id === staged[0].id ? est : null, pr = one ? predict(prefs.target) : null;
+      if (one && one.state !== 'failed') {
+        if (!pr || !pr.final) line = tr('估算中：試壓幾頁，看每一級大概多大…');
+        else if (pr.noGain) line = tr('預估壓了幾乎不會變小：這份已經很精簡。');
+        else if (pr.reached) line = prefs.target > 0 ? tr('預估約 {s}（{lv}）：{t} 以下，寄得出去。', { s: size(pr.bytes), lv: qualityWord(pr.pick, staged[0].kind), t: tgtText(prefs.target) })
+                                                     : tr('預估約 {s}（{lv}）。', { s: size(pr.bytes), lv: qualityWord(pr.pick, staged[0].kind) });
+        else line = tr('預估最小約 {m}，還是超過 {t}；壓完可以「拆開寄」。', { m: size(pr.best), t: tgtText(prefs.target) });
+      }
+      set(staged.length > 1 ? tr('{n} 份可以壓縮了', { n: staged.length }) : tr('可以壓縮了'), line);
+      segTargets($('targetSeg'), !!one); $('targetSeg').classList.remove('hide');
+      const notes = [];
+      if (one && one.state === 'done') notes.push(one.exact ? tr('預估＝整份試壓過的大小。') : tr('預估＝抽 {n} 頁試壓推算，誤差約兩成內。', { n: (one.sample || []).length }));
+      const tb = prefs.target * MB;
+      if (staged.length === 1 && staged[0].kind !== 'image' && prefs.target > 0 && staged[0].bytes <= tb) notes.push(tr('這份本來就在 {t} 以下，壓了會更小。', { t: tgtText(prefs.target) }));
+      const slim = staged.filter(s => s.slimmed).length;
+      if (slim) notes.push(tr('有 {n} 份看起來已經壓過（再壓通常小不了多少）。', { n: slim }));
+      if (staged.some(s => s.form)) notes.push(tr('有表單欄位：壓縮後不能再填寫（你已經同意過）。'));
+      if (staged.some(s => s.editable)) notes.push(tr('Illustrator／Photoshop 存的檔：壓完只能看、印，<br>不能再用原軟體編輯（原檔會留著）。'));
+      if (staged.some(s => s.fmt === 'HEIC')) notes.push(tr('HEIC 會轉成 JPEG：Windows、Email 都打得開。'));
+      if (staged.some(s => s.kind === 'office')) notes.push(tr('Office 檔只重壓裡面的圖；文字、版面、動畫都不動。'));
+      if (staged.some(s => s.kind === 'image')) notes.push(prefs.stripGPS ? tr('照片的位置資訊（GPS）會拿掉（設定裡可以改）。') : tr('照片的位置資訊（GPS）照留（設定裡可以拿掉）。'));
+      $('note').innerHTML = notes.join('<br>');
+      if (staged.length > 1) paintStagedList();
+      acts(staged.every(x => !x.kind || x.kind === 'pdf') ? [[staged.length > 1 ? '合併起來用編輯器打開' : '用編輯器打開', () => send('openEditor', { paths: staged.map(x => x.path) })]] : []);
+    } else if (view === 'ask') {
+      o = 'off';
+      // 有簽章的講簽章（比較嚴重）；只有表單的講表單。講清楚會帶走什麼，才問要不要
+      const sig = askKinds.includes('signed'), form = askKinds.includes('form');
+      const n = askNames.length;
+      const head = sig ? (n > 1 ? tr('有 {n} 份有電子簽章或表單', { n }) : tr('這份有電子簽章'))
+                 : (n > 1 ? tr('有 {n} 份有可填寫的表單', { n }) : tr('這份有可填寫的表單'));
+      const why = sig ? tr('壓縮要重寫整份檔案，簽章會失效<br>（看得到簽名，但驗證不過）。')
+                : tr('壓縮後欄位不能再填寫，<br>已經填的內容也可能不見。');
+      set(head, (n === 1 ? esc(askNames[0]) + '<br>' : '') + why);
+      acts([['照樣壓', () => { mode = 'idle'; send('signed', { yes: true }); }, true], ['不要壓', () => { mode = 'idle'; askNames = []; send('signed', { yes: false }); }]]);
+    } else if (view === 'run') {
+      o = 'run'; label = '';
+      if (mode === 'splitting') paintSplitting(); else paintRun();
+    } else if (view === 'parts') {
+      paintParts();
+      o = 'done'; label = '';
+    } else if (view === 'done') {
+      paintDone();
+      o = done?._orb || 'done';
+      label = o === 'on' ? tr('接著壓') : o === 'retry' ? tr('再試一次') : '';
+    }
+    document.body.dataset.o = o;
+    $('orbLabel').textContent = label || tr('壓縮');
+    $('orbBtn').setAttribute('aria-label', o === 'run' ? tr('停止') : o === 'retry' ? tr('再試一次') : tr('壓縮'));
+    $('clearBtn').setAttribute('aria-label', tr('清掉'));
+    $('orbBtn').disabled = false;
+  }
+  function set(big, sub) { $('state').innerHTML = big; $('sub').innerHTML = sub || ''; }
+  function actsIn(a, list) {
+    a.innerHTML = '';
+    list.forEach(([t, fn, primary]) => {
+      const b = document.createElement('button');
+      b.className = primary ? 'cap-key lg' : 'link';
+      b.textContent = tr(t); b.onclick = e => fn(e); a.appendChild(b);
+    });
+    a.classList.toggle('hide', !list.length);
+  }
+  const acts = list => actsIn($('acts'), list);
+  // macOS 的分享選單（Mail、訊息、AirDrop、LINE…）從按下去的那顆鍵彈出來
+  function share(e, files) {
+    const r = e?.currentTarget?.getBoundingClientRect?.() || { left: 0, top: 0, width: 1, height: 1 };
+    send('share', { files, rect: { x: r.left, y: r.top, w: r.width, h: r.height } });
+  }
+  function proof(ok, bold, rest) {
+    $('proofIcon').innerHTML = ok ? '<path d="M20 6 9 17l-5-5"/>' : '<path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/>';
+    $('proofB').textContent = bold; $('proofS').textContent = rest || '';
+    $('proof').classList.remove('hide');
+  }
+  function paintStagedList() {
+    const l = $('list');
+    l.innerHTML = staged.slice(0, 40).map(s => `<div class="li">${ICON.pdf}<span class="n">${esc(s.name)}</span><span class="v">${size(s.bytes)}</span><button class="rm" data-id="${s.id}" aria-label="${esc(tr('清掉'))}">${ICON.x}</button></div>`).join('');
+    l.querySelectorAll('.rm').forEach(b => b.onclick = e => { e.stopPropagation(); send('remove', { id: b.dataset.id }); });
+    l.classList.remove('hide');
+  }
+
+  function paintExplain() {
+    const e = explain; if (!e) return;
+    const MSG = {
+      notPDF: ['這不是 PDF、照片或 Office 檔', 'Slimly 壓 PDF、照片（HEIC、JPEG、PNG）<br>與 Office 檔（docx、pptx、xlsx）。'],
+      legacy: ['舊格式的 Office 檔', '不支援，請先另存新格式：用 Word、PowerPoint、Excel<br>另存成 .docx／.pptx／.xlsx 再拖進來。'],
+      officeLocked: ['這份 Office 檔有密碼', '先用 Word、PowerPoint、Excel 打開、取消密碼，<br>另存一份再拖進來。Slimly 不破解密碼。'],
+      officeSigned: ['這份有數位簽章', '壓縮要重新打包檔案，簽章會失效，<br>所以 Slimly 不動它。'],
+      officeOle: ['這份裡面嵌了 OLE 物件', '插入的 Excel 工作表、Word 文件、ActiveX 控制項<br>這類 OLE 物件，Slimly 不動它。'],
+      officeMacro: ['這份有巨集', 'docm／pptm／xlsm（或帶巨集的檔）Slimly 不動它。'],
+      officeDamaged: ['這份打不開', '不是完整的 Office 檔（可能下載到一半，<br>或副檔名被改過）。'],
+      empty: ['這份是空的', '沒有內容（0 KB）。'],
+      damaged: ['這份打不開', '不是完整的 PDF（可能下載到一半，<br>或副檔名被改過）。'],
+      unreadable: ['讀不到這份', '沒有權限讀取這個檔案。'],
+      locked: ['這份有密碼', '先用「預覽程式」打開、輸入密碼，<br>再「輸出」一份沒有密碼的 PDF。Slimly 不破解密碼。'],
+      protected: ['這份有權限保護', '作者限制了修改；壓縮會拿掉這層保護，<br>所以 Slimly 不動它。'],
+      folderEmpty: ['資料夾裡沒有 PDF、照片或 Office 檔', null],
+      signed: ['這份有電子簽章', '壓縮要重寫整份檔案，簽章會失效<br>（看得到簽名，但驗證不過）。'],
+      form: ['這份有可填寫的表單', '壓縮後欄位不能再填寫，<br>已經填的內容也可能不見。所以沒壓。'],
+      duplicate: ['這份已經在清單裡了', ''],
+    }[e.code] || ['這份打不開', ''];
+    const sub = e.code === 'folderEmpty' ? tr('「{f}」裡找不到 PDF 檔。', { f: esc(e.name) }) : esc(e.name) + '<br>' + tr(MSG[1]);
+    set(tr(MSG[0]), sub);
+    if (e.more?.length) $('note').innerHTML = esc(tr('還有 {n} 個也沒收：{w}', { n: e.more.length, w: e.more.slice(0, 3).map(s => s.name).join('、') }));
+    if (e.code === 'locked' && e.path) acts([['用「預覽程式」打開', () => send('openWith', { path: e.path, app: 'Preview' }), true]]);
+  }
+
+  function paintRun() {
+    const p = prog;
+    if (!p) { set(tr('壓縮中'), ''); prog2(0); return; }
+    set(total > 1 ? tr('第 {i}／{n} 份', { i: p.i, n: p.total }) : tr('壓縮中'), '');
+    const line1 = p.level < 0 ? tr('壓好了，正在核對每一頁的畫面')
+                : p.level > 0 && p.page === 0 ? tr('還不夠小，換「{lv}」再壓一次', { lv: p.label })
+                : p.kind === 'image' ? tr('{lv}…', { lv: p.label })
+                : tr('{lv}・第 {p}／{n} 頁', { lv: p.label, p: p.page, n: p.pages });
+    const eta = etaText(p.eta);
+    $('sub').innerHTML = esc(line1) + (eta ? '・' + esc(eta) : '') + ((p.eta > 20 || p.total > 1) ? '<br>' + tr('可以先去忙，好了會通知你。') : '');
+    prog2(p.frac);
+    if (finished.length) paintResultList(finished.slice(-3));
+  }
+
+  function paintDoneCard() {
+    const it = done.items.length === 1 ? done.items[0] : null;
+    if (it && it.status === 'saved') {
+      $('cardIcon').classList.add('drag');
+      $('cardIcon').title = tr('拖出去就是檔案');
+      $('cardTitle').textContent = it.outName;
+      $('cardSub').textContent = cardLine(it, it.after);
+    } else if (it) {
+      $('cardTitle').textContent = it.name;
+      $('cardSub').textContent = cardLine(it, it.before);
+    } else {
+      $('cardIcon').innerHTML = ICON.stack;
+      $('cardTitle').textContent = batchTitle(done.items.concat(done.remaining || []));
+      $('cardSub').textContent = done.before ? (size(done.before) + ' → ' + size(done.after)) : '';
+    }
+  }
+
+  /** 一批的名字（放進來、壓完都用這個）：全是照片＝N 張照片；照片、Office 檔混著＝N 份檔案；都是 PDF＝N 份 PDF */
+  function batchTitle(list) {
+    const n = list.length;
+    return list.every(x => x.kind === 'image') ? tr('{n} 張照片', { n }) : list.some(x => x.kind && x.kind !== 'pdf') ? tr('{n} 份檔案', { n }) : tr('{n} 份 PDF', { n });
+  }
+
+  function qualityWord(level, kind) {
+    return level === 0 ? tr('畫質看不出差別') : level === 1 ? tr('畫質幾乎看不出差別') : level === 2 ? tr('畫質略降')
+         : kind === 'image' || kind === 'office' ? tr('長邊縮到 {d}', { d: ['', '', '', '3000 px', '2400 px', '1600 px'][level] })
+         : tr('解析度降到 {d}', { d: ['', '', '', '150 dpi', '120 dpi', '100 dpi'][level] });
+  }
+
+  function paintDone() {
+    const d = done, items = d.items;
+    const saved = items.filter(i => i.status === 'saved');
+    const failed = items.filter(i => i.status === 'failed');
+    d._orb = 'done';
+    if (d.stopped) {
+      d._orb = d.remaining?.length ? 'on' : 'done';
+      set(tr('已停止'), saved.length ? tr('壓好的 {a} 份留著；沒壓完的原檔都沒動。<br>再按一次中間那顆，接著壓剩下的 {n} 份。', { a: saved.length, n: d.remaining.length })
+                                     : tr('沒壓完的原檔都沒動。<br>再按一次中間那顆，接著壓剩下的 {n} 份。', { n: d.remaining.length }));
+      if (items.length) paintResultList(items);
+      if (saved.length) acts([['在 Finder 顯示全部', () => send('revealAll'), true]]);
+      return;
+    }
+    if (items.length === 1) { paintOne(items[0]); return; }
+    // 一批
+    const b = saved.reduce((a, i) => a + i.before, 0), a = saved.reduce((x, i) => x + i.after, 0);
+    set(saved.length === items.length ? tr('{n} 份都壓好了', { n: items.length }) : saved.length ? tr('{a} 份壓好了', { a: saved.length }) : tr('這次沒有壓出新檔'),
+        saved.length ? tr('共 {b} → {a}，省下 {s}（{p}%）。', { b: size(b), a: size(a), s: size(b - a), p: pct(b, a) }) : '');
+    paintResultList(items);
+    const L = [];
+    const over = saved.filter(i => !i.reached);
+    if (saved.length) L.push(['在 Finder 顯示全部', () => send('revealAll'), true]);
+    if (failed.some(f => f.code === 'permission')) {
+      L.push(['改存到下載項目', () => send('retry', { toDownloads: true, ids: failed.filter(f => f.code === 'permission').map(f => f.id) })]);
+    } else if (failed.length) L.push(['重試沒壓成的', () => send('retry', { ids: failed.map(f => f.id) })]);
+    else if (over.length) L.push([tr('拆開還太大的 {n} 份', { n: over.length }), () => send('split', { ids: over.map(i => i.id) })]);
+    if (saved.length) L.push(['分享…', e => share(e, saved.map(i => i.out))]);
+    acts(L.slice(0, 3));
+    if (failed.length) d._orb = saved.length ? 'done' : 'retry';
+  }
+
+  function paintOne(it) {
+    const tgt = prefs.target;
+    if (it.status === 'saved') {
+      set(size(it.before) + ' → ' + size(it.after),
+          it.note === 'converted' ? tr('轉成 JPEG，大家都打得開・比原檔大 {p}%', { p: Math.round((it.after / it.before - 1) * 100) })
+                                  : tr('小了 {p}%・{lv}', { p: pct(it.before, it.after), lv: it.label }));   // 新檔名已經在上面的卡片（可以直接拖出去）
+      if (it.backup) $('note').innerHTML = esc(tr('原檔收進「{d}」', { d: it.backup.split('/').slice(-2, -1)[0] }));
+      const lim = tgtText(Math.round((it.limit || tgt * MB) / MB));
+      if (!it.reached) {
+        proof(false, tr('還是超過 {t}', { t: lim }));
+        $('note').innerHTML = it.kind === 'image' || it.kind === 'office' ? tr('這已經是最小能到的版本（{lv}）。', { lv: it.label })
+                                                : tr('這是畫質不犧牲的版本；最小能到 {m}，但畫質會明顯變差。', { m: size(it.smallest) }) + '<br>' + tr('要寄 Email：按「拆開寄」，每份都在 {t} 以下。', { t: lim });
+      } else {
+        proof(true, tgt > 0 ? tr('{t} 以下，寄得出去', { t: tgtText(tgt) }) : qualityWord(it.level, it.kind), tgt > 0 ? '・' + qualityWord(it.level, it.kind) : '');
+      }
+      if (it.note === 'repaired') $('note').innerHTML += ($('note').innerHTML ? '<br>' : '') + tr('原檔有些地方不標準，Slimly 修補過；壓完請打開看一下。');
+      if (it.note === 'blurry' && !it.reached) $('note').innerHTML = tr('再往下壓，畫面會明顯變糊，所以給你畫質不犧牲的這一版。') + '<br>' + tr('要寄 Email：按「拆開寄」，每份都在 {t} 以下。', { t: lim });
+      // 「打開看看」收進前後對照頁（那裡有「打開壓好的檔」）：完成畫面維持三顆
+      acts(it.reached
+        ? [['在 Finder 顯示', () => send('reveal', { path: it.out }), true], it.kind === 'office' ? ['打開看看', () => send('open', { path: it.out })] : ['前後對照', () => openCompare(it)], ['分享…', e => share(e, [it.out])]]
+        : it.kind === 'image' ? [['在 Finder 顯示', () => send('reveal', { path: it.out }), true], ['前後對照', () => openCompare(it)], ['分享…', e => share(e, [it.out])]]
+        : it.kind === 'office' ? [['在 Finder 顯示', () => send('reveal', { path: it.out }), true], ['打開看看', () => send('open', { path: it.out })], ['分享…', e => share(e, [it.out])]]
+        : [['拆開寄', () => send('split', { ids: [it.id] }), true], ['前後對照', () => openCompare(it)], ['在 Finder 顯示', () => send('reveal', { path: it.out })], ['分享…', e => share(e, [it.out])]]);
+      done._orb = 'done';
+      return;
+    }
+    if (it.status === 'nogain') {
+      set(it.kind === 'image' ? tr('這張已經很精簡') : tr('這份已經很精簡'), it.after >= it.before ? tr('壓了反而變大，沒另存一份。<br>原檔就是最好的版本。')
+                                : pct(it.before, it.after) < 1 ? tr('壓了幾乎沒變小，沒另存一份。<br>原檔就是最好的版本。')
+                                : tr('壓了只小 {p}%，沒另存一份。<br>原檔就是最好的版本。', { p: pct(it.before, it.after) }));
+      $('note').innerHTML = it.kind === 'office' ? tr('這份裡面的圖本來就壓過了，或幾乎沒有圖（文字、表格壓不小）。')
+                        : it.kind === 'image' ? (it.fmt === 'PNG' ? tr('有透明的 PNG 只能縮尺寸；原尺寸存一次不會更小。') : tr('常見原因：手機、相機存的 JPEG 本來就壓過了。'))
+                                                : tr('常見原因：圖本來就壓過（Keynote、Canva、iLovePDF 處理過的檔），<br>或整份幾乎都是文字與向量圖。');
+      done._orb = 'done';
+      return;
+    }
+    // 失敗
+    const M = {
+      engine: ['這份壓不了', tr('壓縮引擎讀不懂這份檔案的某些內容。<br>原檔沒動。')],
+      timeout: ['卡住了', tr('超過 {s} 秒沒有進度，已經停止。<br>原檔沒動。', { s: it.detail || 120 })],
+      pages: ['壓完頁數對不上', (() => { const [a, b] = String(it.detail || '').split('→'); return tr('{a} 頁變成 {b} 頁，所以沒交出去。<br>原檔沒動。', { a, b }); })()],
+      permission: ['存不進這個資料夾', tr('「{d}」是唯讀的，或 Slimly 沒有權限。<br>原檔沒動。', { d: esc((it.detail || '').split('/').filter(Boolean).pop() || '/') })],
+      space: ['磁碟空間不夠', tr('暫存要放得下原檔的兩倍大小。<br>清出一些空間再試一次。原檔沒動。')],
+      quality: ['壓完的畫面跟原檔對不上', (() => { const [pg, pc] = String(it.detail || '').split('|'); return tr('第 {p} 頁有 {x}% 的地方變了，所以沒交出去。<br>原檔沒動。', { p: pg || '?', x: pc || '?' }); })()],
+    }[it.code] || ['這份壓不了', tr('壓縮引擎讀不懂這份檔案的某些內容。<br>原檔沒動。')];
+    set(tr(M[0]), M[1]);
+    if (it.code === 'quality') $('note').innerHTML = tr('常見原因：透明效果（Canva、Illustrator 的混合模式），<br>或 Mac 的預覽程式畫不出壓完的寫法。');
+    if (it.code === 'permission') {
+      acts([['改存到下載項目', () => send('retry', { toDownloads: true, ids: [it.id] }), true], ['選別的資料夾…', () => send('retry', { pickFolder: true, ids: [it.id] })]]);
+      done._orb = 'done';
+    } else if (it.code === 'quality') {
+      done._orb = 'done';
+    } else {
+      done._orb = 'retry';
+      if (it.code === 'engine' && it.detail) {
+        acts([['看細節', () => { showDetail = !showDetail; $('detail').classList.toggle('hide', !showDetail); }]]);
+        $('detail').textContent = it.detail;
+        $('detail').classList.toggle('hide', !showDetail);
+      }
+    }
+  }
+
+  function paintSplitting() {
+    const s = split || {};
+    set(tr('正在拆開'), s.n ? tr('存好第 {i}／{n} 份', { i: s.i, n: s.n }) : tr('先量每一頁有多大…'));
+    prog2(s.n ? s.i / s.n : 0.04);
+  }
+  function paintPartsCard() {
+    const ps = parts.parts || [];
+    $('cardIcon').innerHTML = ICON.stack;
+    if (parts.ok) { $('cardIcon').classList.add('drag'); $('cardIcon').title = tr('拖出去就是檔案'); }
+    $('cardTitle').textContent = parts.ok ? tr('{n} 份 PDF', { n: ps.length }) : (parts.name || '');
+    $('cardSub').textContent = parts.ok ? tr('共 {s}', { s: size(ps.reduce((a, x) => a + x.bytes, 0)) }) : '';
+  }
+  function paintParts() {
+    const p = parts;
+    const t = tgtText(Math.round((p.limit || 0) / MB));
+    if (!p.ok) {
+      set(tr('拆不開'), tr('整份壓好的那一份還在，原檔也沒動。'));
+      $('note').innerHTML = String(p.reason || '').startsWith('verify') ? tr('拆出來的畫面跟整份的對不上，所以沒交出去。') : tr('存不進去，或這份讀不出來。');
+      if (p.source) acts([['在 Finder 顯示', () => send('reveal', { path: p.source }), true]]);
+      return;
+    }
+    const ps = p.parts;
+    set(tr('拆成 {n} 份了', { n: ps.length }),
+        ps.some(x => x.over) ? tr('有一頁單頁就超過 {t}，那一份還是太大。', { t }) : tr('每份都在 {t} 以下，可以分開寄。', { t }));
+    const l = $('list');
+    l.innerHTML = ps.map(x => `<div class="li" data-out="${esc(x.path)}">${x.over ? ICON.warn : ICON.ok}<span class="n">${esc(x.name)}</span><span class="v">${esc(tr('第 {a}–{b} 頁', { a: x.first, b: x.last }) + '・' + size(x.bytes))}</span></div>`).join('');
+    l.querySelectorAll('.li').forEach(r => { r.style.cursor = 'pointer'; r.onclick = () => send('reveal', { path: r.dataset.out }); });
+    l.classList.remove('hide');
+    $('note').innerHTML = tr('整份的那一份也留著。');
+    const files = ps.map(x => x.path);
+    acts([['在 Finder 顯示全部', () => send('revealFiles', { files }), true], ['分享…', e => share(e, files)]]);
+  }
+
+  function paintResultList(items) {
+    const l = $('list');
+    l.innerHTML = items.map(i => {
+      let icon = ICON.ok, v = '';
+      if (i.status === 'saved') { v = size(i.before) + ' → ' + size(i.after); if (!i.reached) { icon = ICON.warn; v += '・' + tr('還是超過目標'); } }
+      else if (i.status === 'nogain') { icon = ICON.dash; v = tr('沒變小'); }
+      else { icon = ICON.x; v = tr({ permission: '存不進這個資料夾', timeout: '卡住了', pages: '壓完頁數對不上', space: '磁碟空間不夠', quality: '畫面對不上' }[i.code] || '沒壓成'); }
+      return `<div class="li" data-out="${esc(i.out || '')}">${icon}<span class="n">${esc(i.name)}</span><span class="v">${esc(v)}</span></div>`;
+    }).join('');
+    l.querySelectorAll('.li').forEach(r => { if (r.dataset.out) { r.style.cursor = 'pointer'; r.onclick = () => send('reveal', { path: r.dataset.out }); } });
+    l.classList.remove('hide');
+    l.scrollTop = l.scrollHeight;
+  }
+
+  // ── 主鍵 ──
+  $('orbBtn').onclick = () => {
+    const o = document.body.dataset.o;
+    if (o === 'run') { send('stop'); return; }
+    if (o === 'on') { send('start'); return; }
+    if (o === 'retry') { send('retry', {}); return; }
+    if (o === 'off') { nudge(); toast(tr('先放一份 PDF 或照片進來，或按「選擇檔案」。')); return; }
+  };
+  $('what').onclick = e => { if ($('what').classList.contains('slot') && mode !== 'run') send('pick'); };
+  $('what').onkeydown = e => { if ((e.key === 'Enter' || e.key === ' ') && $('what').classList.contains('slot')) { e.preventDefault(); send('pick'); } };
+  $('pickBtn').onclick = e => { e.stopPropagation(); send('pick'); };
+  $('clearBtn').onclick = e => { e.stopPropagation(); explain = null; send('clear'); };
+  // 做完的卡片：縮圖按住拖出去＝檔案（拖進 Gmail、LINE、Finder）
+  $('cardIcon').onmousedown = () => {
+    if (mode === 'parts' && parts?.ok) { send('dragArm', { files: parts.parts.map(p => p.path) }); return; }
+    const it = done?.items?.length === 1 ? done.items[0] : null;
+    if (mode === 'done' && it?.status === 'saved') send('dragArm', { files: [it.out] });
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePages(); return; }
+    if (e.key === 'Enter' && !document.querySelector('.page.on') && $('wiz').classList.contains('hide') && document.activeElement?.tagName !== 'INPUT') {
+      const o = document.body.dataset.o; if (o === 'on') send('start');
+    }
+  });
+
+  // ── 次頁 ──
+  const pages = ['pRecent', 'pSettings', 'pAbout', 'pTools', 'pTool', 'pCompare', 'pWatch'];
+  function openPage(id) { closePages(); $(id).classList.add('on'); }
+  function closePages() {
+    if ($('pCompare').classList.contains('on') && cmp && (cmp.state === 'load' || cmp.state === 'on')) { cmp.state = 'closed'; cmp.want = ''; send('compareClose'); }
+    if ($('pTool').classList.contains('on')) { send('toolTarget', { tool: '' }); if (document.body.dataset.tool !== 'run') document.body.dataset.tool = ''; }
+    pages.forEach(p => $(p).classList.remove('on'));
+  }
+  document.querySelectorAll('[data-close]').forEach(b => b.onclick = closePages);
+
+  // ── 前後對照：壓完的同一頁疊在一起，左＝壓前、右＝壓後；拖黃線比、放大、換頁。圖走 slimly-cmp://（Swift 畫成 PNG） ──
+  const ZOOMS = [1, 2, 4];
+  function openCompare(it) {
+    cmp = { id: it.id, out: it.out, state: 'load', token: '', page: 0, pages: it.pages || 1, aspect: 1.414, zoom: 1, split: 0.5, tx: 0, ty: 0, want: '', loaded: false };
+    $('cmpSizes').textContent = it.after > it.before ? tr('壓前 {b} → 壓後 {a}（大了 {p}%）', { b: size(it.before), a: size(it.after), p: Math.round((it.after / it.before - 1) * 100) })
+                                                     : tr('壓前 {b} → 壓後 {a}（小了 {p}%）', { b: size(it.before), a: size(it.after), p: pct(it.before, it.after) });
+    ['cmpA', 'cmpB'].forEach(k => $(k).removeAttribute('src'));
+    $('cmpLoad').classList.remove('hide');
+    openPage('pCompare'); cmpBar();
+    send('compare', { id: it.id });
+  }
+  function closeCompare(state) {
+    if (!cmp) return;
+    if (cmp.state === 'load' || cmp.state === 'on') send('compareClose');
+    cmp.state = state; cmp.want = '';
+    ['cmpA', 'cmpB'].forEach(k => $(k).removeAttribute('src'));
+    pages.forEach(p => $(p).classList.remove('on'));
+  }
+  function cmpBar() {
+    if (!cmp) return;
+    $('cmpPage').textContent = tr('第 {p} 頁 / {n}', { p: cmp.page + 1, n: cmp.pages });
+    $('cmpZoom').textContent = Math.round(cmp.zoom * 100) + '%';
+    $('cmpPrev').disabled = cmp.page <= 0; $('cmpNext').disabled = cmp.page >= cmp.pages - 1;
+    $('cmpZoomOut').disabled = cmp.zoom <= ZOOMS[0]; $('cmpZoomIn').disabled = cmp.zoom >= ZOOMS[ZOOMS.length - 1];
+  }
+  // 版面：整頁寬＝框寬（1 倍），放大＝整塊等比放大；黃線固定在框上，壓後那張從黃線右邊露出來
+  function cmpLayout() {
+    if (!cmp) return;
+    const v = $('cmpView'), W = v.clientWidth, Hv = v.clientHeight, H = W * cmp.aspect, z = cmp.zoom;
+    cmp.tx = Math.min(0, Math.max(W - W * z, cmp.tx)); cmp.ty = Math.min(0, Math.max(Math.min(0, Hv - H * z), cmp.ty));
+    const box = $('cmpBox'); box.style.width = W + 'px'; box.style.height = H + 'px';
+    box.style.transform = `translate(${cmp.tx}px, ${cmp.ty}px) scale(${z})`;
+    const sx = cmp.split * W, cx = Math.max(0, (sx - cmp.tx) / z);
+    $('cmpBWrap').style.clipPath = `inset(0 0 0 ${cx}px)`;
+    $('cmpLine').style.left = sx + 'px';
+    cmpBar();
+  }
+  // 照現在的頁、放大倍數要兩張圖（兩張都到了才換上去，對得齊）；換頁才蓋「正在畫」
+  function cmpLoad(cover) {
+    if (!cmp || !cmp.token) return;
+    const v = $('cmpView'), w = Math.min(4000, Math.round(v.clientWidth * (window.devicePixelRatio || 1) * cmp.zoom));
+    const want = `t=${cmp.token}&page=${cmp.page}&w=${w}`;
+    if (want === cmp.want) return;
+    cmp.want = want; if (cover) { cmp.loaded = false; $('cmpLoad').classList.remove('hide'); }
+    const got = {};
+    ['a', 'b'].forEach(side => {
+      const im = new Image();
+      im.onload = () => {
+        if (!cmp || cmp.want !== want) return;
+        got[side] = im.src;
+        if (got.a && got.b) { $('cmpA').src = got.a; $('cmpB').src = got.b; cmp.loaded = true; cmp.state = 'on'; $('cmpLoad').classList.add('hide'); cmpLayout(); }
+      };
+      im.onerror = () => { if (cmp && cmp.want === want) { toast(tr('這一頁畫不出來')); closeCompare('closed'); } };
+      im.src = `slimly-cmp://img?side=${side}&${want}`;
+    });
+  }
+  function cmpZoom(d) {
+    if (!cmp || cmp.state !== 'on') return;
+    const i = ZOOMS.indexOf(cmp.zoom), z = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + d))]; if (z === cmp.zoom) return;
+    const v = $('cmpView'), cx = v.clientWidth / 2, cy = v.clientHeight / 2;           // 以框的中心放大
+    cmp.tx = cx - (cx - cmp.tx) * z / cmp.zoom; cmp.ty = cy - (cy - cmp.ty) * z / cmp.zoom; cmp.zoom = z;
+    cmpLayout(); cmpLoad(false);
+  }
+  function cmpGo(d) {
+    if (!cmp || !cmp.token) return;
+    const pg = Math.max(0, Math.min(cmp.pages - 1, cmp.page + d)); if (pg === cmp.page) return;
+    cmp.page = pg; cmp.tx = 0; cmp.ty = 0; cmp.state = 'load'; cmpLayout(); cmpLoad(true);
+  }
+  $('cmpClose').onclick = () => closeCompare('closed');
+  $('cmpCancel').onclick = () => closeCompare('cancelled');
+  $('cmpPrev').onclick = () => cmpGo(-1); $('cmpNext').onclick = () => cmpGo(1);
+  $('cmpZoomIn').onclick = () => cmpZoom(1); $('cmpZoomOut').onclick = () => cmpZoom(-1);
+  $('cmpOpen').onclick = () => { if (cmp?.out) send('open', { path: cmp.out }); };
+  // 拖黃線＝比；放大之後拖別的地方＝移動畫面（沒放大、整頁放得下時，點哪裡黃線就到哪裡）
+  $('cmpView').onpointerdown = e => {
+    if (!cmp || cmp.state !== 'on') return;
+    const v = $('cmpView'), r = v.getBoundingClientRect(), onLine = Math.abs(e.clientX - r.left - cmp.split * r.width) < 20;
+    const canPan = cmp.zoom > 1 || r.width * cmp.aspect > r.height + 1;
+    const x0 = e.clientX, y0 = e.clientY, tx0 = cmp.tx, ty0 = cmp.ty, line = onLine || !canPan;
+    try { v.setPointerCapture(e.pointerId); } catch (_) {}
+    const move = ev => {
+      if (line) cmp.split = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+      else { cmp.tx = tx0 + ev.clientX - x0; cmp.ty = ty0 + ev.clientY - y0; }
+      cmpLayout();
+    };
+    if (line) move(e);
+    v.onpointermove = move;
+    v.onpointerup = v.onpointercancel = () => { v.onpointermove = null; v.onpointerup = null; v.onpointercancel = null; };
+  };
+  $('cmpView').addEventListener('wheel', e => { if (!cmp || cmp.state !== 'on') return; e.preventDefault(); cmp.tx -= e.deltaX; cmp.ty -= e.deltaY; cmpLayout(); }, { passive: false });
+  addEventListener('resize', () => { if (cmp && $('pCompare').classList.contains('on')) cmpLayout(); });
+  // ── 監看資料夾──
+  let watch = { folders: [], recent: [], paused: false, busy: '', waiting: 0 };
+  const WSTATE = { ok: '監看中', missing: '找不到這個資料夾（移走或刪了？）', denied: '沒有權限讀這個資料夾' };
+  const WSKIP = { type: '略過：不是 PDF 或照片', ours: '略過：已經是壓好的檔', signed: '略過：有電子簽章（要壓請拖進主視窗）', form: '略過：有可填寫的表單（要壓請拖進主視窗）' };
+  const hhmm = t => { const d = new Date(t * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  function watchLine(r) {
+    if (r.status === 'saved') return `${size(r.before)} → ${size(r.after)}` + (r.reached === false ? '・' + tr('還是超過目標') : '');
+    if (r.status === 'nogain') return tr('已經很精簡，沒另存');
+    if (r.status === 'skip') return WSKIP[r.code] ? tr(WSKIP[r.code]) : tr('略過：{w}', { w: tr(SKIPWORD[r.code] || r.code) });
+    return tr('沒壓成：{w}', { w: r.code });
+  }
+  function paintWatchChip() {
+    const c = $('watchChip'), n = watch.folders.length;
+    c.classList.toggle('hide', !n);
+    if (!n) return;
+    const bad = watch.folders.some(f => f.state !== 'ok');
+    c.classList.toggle('off', watch.paused); c.classList.toggle('warn', bad && !watch.paused);
+    $('watchChipT').textContent = watch.paused ? tr('監看暫停') : bad ? tr('監看：有資料夾找不到') : watch.busy ? tr('正在壓 {n}', { n: watch.busy }) : tr('監看中・{n} 個資料夾', { n });
+  }
+  function paintWatch() {
+    $('watchCap').textContent = watch.folders.length ? (watch.paused ? tr('已暫停') : tr('監看 {n} 個資料夾', { n: watch.folders.length })) : tr('還沒有監看的資料夾');
+    $('watchPause').classList.toggle('on', !!watch.paused);
+    const T = TARGETS.map(t => t.mb);
+    $('watchList').innerHTML = watch.folders.map(f => `<div class="wf" data-path="${esc(f.path)}">
+        <div class="top2"><span class="t-body one">${esc(f.name)}</span><span class="st ${f.state === 'ok' ? '' : 'warn'}">${esc(tr(WSTATE[f.state] || f.state))}</span><span class="grow"></span>
+          <button class="link" data-wrev>${esc(tr('打開「Slimly 已壓縮」'))}</button><button class="link" data-wrm>${esc(tr('拿掉'))}</button></div>
+        <div class="t-cap one">${esc(f.shown)}</div>
+        <span class="seg">${(T.includes(f.target) ? T : [f.target, ...T]).map(mb => `<button data-wmb="${mb}" class="${mb === f.target ? 'on' : ''}">${esc(tgtText(mb))}</button>`).join('')}</span></div>`).join('');
+    $('watchList').querySelectorAll('.wf').forEach(row => {
+      const path = row.dataset.path;
+      row.querySelector('[data-wrm]').onclick = () => send('watchRemove', { path });
+      row.querySelector('[data-wrev]').onclick = () => send('watchReveal', { path });
+      row.querySelectorAll('[data-wmb]').forEach(b => b.onclick = () => send('watchTarget', { path, mb: +b.dataset.wmb }));
+    });
+    $('watchRecent').innerHTML = watch.recent.length ? watch.recent.slice(0, 20).map(r => `<div class="r"><span class="tm">${hhmm(r.at)}</span><span><b>${esc(r.name)}</b>・${esc(watchLine(r))}</span></div>`).join('')
+                                                     : `<div class="r">${esc(tr('還沒有處理過檔案。'))}</div>`;
+  }
+  $('watchChip').onclick = () => { paintWatch(); openPage('pWatch'); };
+  $('watchBtn').onclick = () => { paintWatch(); openPage('pWatch'); };
+  $('watchAddBtn').onclick = () => send('watchAdd');
+  $('watchPause').onclick = () => send('watchPause', { on: !watch.paused });
+  window.__watch = () => ({ folders: watch.folders.map(f => ({ name: f.name, state: f.state, target: f.target })), paused: watch.paused, busy: watch.busy, waiting: watch.waiting,
+    recent: watch.recent.map(r => ({ name: r.name, status: r.status, code: r.code || '', outName: r.outName || '' })), chip: $('watchChip').classList.contains('hide') ? '' : $('watchChipT').textContent,
+    open: $('pWatch').classList.contains('on'), list: $('watchList').innerText.replace(/\s+/g, ' ').trim() });
+  window.__cmp = () => cmp && { state: cmp.state, page: cmp.page, pages: cmp.pages, zoom: cmp.zoom, split: cmp.split, loaded: !!cmp.loaded,
+    open: $('pCompare').classList.contains('on'), aw: $('cmpA').naturalWidth || 0, bw: $('cmpB').naturalWidth || 0, sizes: $('cmpSizes').textContent };
+  $('recentBtn').onclick = () => { send('history'); openPage('pRecent'); };
+  $('toolsBtn').onclick = () => openTool('');
+  $('tRecent').onclick = () => { send('history'); openPage('pRecent'); };
+  $('settingsBtn').onclick = () => { paintSettings(); openPage('pSettings'); };
+  $('aboutBtn').onclick = () => openPage('pAbout');
+  $('noticesBtn').onclick = () => send('notices');
+  document.querySelectorAll('[data-doc]').forEach(b => b.onclick = () => send('openDoc', { doc: b.dataset.doc }));
+  $('histClear').onclick = () => send('clearHistory');
+  $('wizAgain').onclick = () => { closePages(); openWizard(0); };
+  $('folderBtn').onclick = () => send('pickFolder');
+  document.querySelectorAll('#placeSeg button').forEach(b => b.onclick = () => { prefs.place = b.dataset.place; send('setPlace', { place: b.dataset.place }); if (b.dataset.place === 'folder' && !prefs.folder) send('pickFolder'); paintSettings(); });
+  document.querySelectorAll('#origSeg button').forEach(b => b.onclick = () => { prefs.original = b.dataset.orig; send('setOriginal', { mode: b.dataset.orig }); paintSettings(); });
+  document.querySelectorAll('#gpsSeg button').forEach(b => b.onclick = () => { prefs.stripGPS = b.dataset.gps === 'strip'; send('setStripGPS', { on: prefs.stripGPS }); paintSettings(); if (mode !== 'run') paint(); });
+  document.querySelectorAll('#themeSeg button').forEach(b => b.onclick = () => send('setTheme', { mode: b.dataset.theme }));
+  document.querySelectorAll('#langSeg button').forEach(b => b.onclick = () => send('setLang', { lang: b.dataset.lang }));
+  $('customMB').onchange = () => { const v = Math.round(+$('customMB').value); if (v >= 1) { prefs.target = v; send('setTarget', { mb: v }); paint(); paintSettings(); } };
+
+  function paintSettings() {
+    segTargets($('setTargetSeg'));
+    const t = TARGETS.find(x => x.mb === prefs.target);
+    $('targetCap').textContent = t ? tr(t.cap) : tr('{t} 以下', { t: tgtText(prefs.target) });
+    $('customMB').value = TARGETS.some(x => x.mb === prefs.target) ? '' : prefs.target;
+    document.querySelectorAll('#placeSeg button').forEach(b => b.classList.toggle('on', b.dataset.place === prefs.place));
+    $('placeCap').textContent = prefs.place === 'folder' ? tr('放在「{d}」', { d: prefs.folder }) : tr('跟原檔同一個資料夾');
+    $('folderBtn').classList.toggle('hide', prefs.place !== 'folder');
+    $('origRow').classList.toggle('hide', prefs.place !== 'beside');
+    document.querySelectorAll('#origSeg button').forEach(b => b.classList.toggle('on', b.dataset.orig === prefs.original));
+    $('origCap').textContent = prefs.original === 'backup' ? tr('收進「未壓縮備份」時，壓好的那份用原本的檔名。') : tr('另存一份，原檔不動。');
+    document.querySelectorAll('#gpsSeg button').forEach(b => b.classList.toggle('on', (b.dataset.gps === 'strip') === !!prefs.stripGPS));
+    $('gpsCap').textContent = prefs.stripGPS ? tr('壓好的照片不帶拍攝地點；原檔不動。') : tr('跟原檔一樣帶著拍攝地點；要寄給別人可以拿掉。');
+    document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.theme === prefs.theme));
+    document.querySelectorAll('#langSeg button').forEach(b => b.classList.toggle('on', b.dataset.lang === prefs.lang));
+    $('aboutLine').textContent = tr('版本 {v}（{b}）・引擎 {e}', { v: prefs.version || '', b: prefs.build || '', e: prefs.engine || 'Ghostscript' });
+  }
+
+  // ── 精靈 ──
+  const WP = ['welcome', 'target', 'place', 'use'];
+  let wp = 0;
+  function openWizard(n) { wp = Math.max(0, Math.min(WP.length - 1, n || 0)); $('wiz').classList.remove('hide'); paintWizard(); }
+  function paintWizard() {
+    document.querySelectorAll('.wpage').forEach(p => p.classList.toggle('on', p.dataset.p === WP[wp]));
+    $('wstep').textContent = wp ? `${wp} / ${WP.length - 1}` : '';
+    // 底列是三格（左｜中｜右）：藏起來的用 visibility，格子要留著，不然右邊的鍵會滑到中間
+    $('wback').style.visibility = wp === 0 ? 'hidden' : 'visible';
+    $('wskip').classList.toggle('hide', wp === 0 || wp === WP.length - 1);
+    $('wpb').style.visibility = wp === 0 ? 'visible' : 'hidden';   // 其他頁右邊有「先跳過＋下一步」，中間放不下 Powered by
+    $('wnext').textContent = wp === 0 ? tr('開始設定') : wp === WP.length - 1 ? (staged.length ? tr('好了，開始壓') : tr('好了，開始用')) : tr('下一步');
+    $('wTargets').innerHTML = TARGETS.map(t => `<button class="opt ${t.mb === prefs.target ? 'on' : ''}" data-mb="${t.mb}"><span class="dot"></span><span class="l"><div class="t-body">${esc(tr(t.name))}</div><div class="t-cap">${esc(t.mb > 0 ? tr('{t} 以下', { t: t.mb + ' MB' }) : tr(t.cap))}</div></span></button>`).join('');
+    $('wTargets').querySelectorAll('.opt').forEach(b => b.onclick = () => { prefs.target = +b.dataset.mb; send('setTarget', { mb: prefs.target }); paintWizard(); });
+    document.querySelectorAll('#wPlaces .opt').forEach(b => b.classList.toggle('on', b.dataset.place === prefs.place));
+    $('wFolder').textContent = prefs.folder || '';
+    $('wExName').textContent = prefs.place === 'folder' ? tr('品牌提案（已壓縮）.pdf') + '　→ ' + (prefs.folder || '') : tr('品牌提案（已壓縮）.pdf');
+  }
+  document.querySelectorAll('#wPlaces .opt').forEach(b => b.onclick = () => { prefs.place = b.dataset.place; send('setPlace', { place: b.dataset.place }); if (b.dataset.place === 'folder') send('pickFolder'); paintWizard(); });
+  function closeWizard(start) { $('wiz').classList.add('hide'); send('wizardDone', { start: !!start }); }
+  $('wnext').onclick = () => { if (wp === WP.length - 1) closeWizard(staged.length > 0); else { wp++; paintWizard(); } };
+  $('wback').onclick = () => { if (wp > 0) { wp--; paintWizard(); } };
+  $('wskip').onclick = () => closeWizard(false);
+
+  // ── 編輯與轉檔（2.1）：主視窗只留三個入口——編輯器（另開一個視窗，像 Acrobat）、轉檔、比較兩版。
+  //    iLovePDF 那 32 個工具照「手上拿的是什麼」收進去：一份 PDF 要改＝編輯器；要換格式＝轉檔；兩份要對照＝比較。修復、解鎖在打不開時自己出現。
+  const L2 = a => Array.isArray(a) ? (LANG === 'en' ? a[1] : a[0]) : (a || '');
+  const svg = p => `<svg viewBox="0 0 24 24">${p}</svg>`;
+  const IMGX = ['jpg', 'jpeg', 'png', 'heic', 'heif', 'tif', 'tiff', 'gif', 'bmp', 'webp'];
+  const OFFX = ['docx', 'doc', 'rtf', 'odt', 'txt', 'pages', 'md', 'pptx', 'ppt', 'key', 'odp', 'xlsx', 'xls', 'numbers', 'csv', 'ods'];
+  const HTMLX = ['html', 'htm', 'webarchive'];
+  const TI = {
+    edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    convert: '<path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/>',
+    compare: '<rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="16" rx="1.5"/><path d="M6 8.5h1M6 12h1M17 8.5h1M17 15.5h1"/>',
+    image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/>',
+    word: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M8.5 12l1.2 5 1.8-4 1.8 4 1.2-5"/>',
+    slides: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8M9.5 13V7.5H12a2 2 0 0 1 0 4H9.5"/>',
+    sheet: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 15h18M9 4v16"/>',
+    web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    md: '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M6 15V9l2.5 3L11 9v6M15.5 9v6M13.5 13l2 2 2-2"/>',
+    archive: '<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>',
+    lang: '<path d="M4 5h8M8 3v2M5.5 5c1 3.5 3.5 6 6.5 7M10.5 5c-.8 3-3 5.8-6.5 7.5"/><path d="m13 21 4-10 4 10M14.5 17.5h5"/>',
+    sum: '<path d="M4 6h16M4 10h16M4 14h10M4 18h6"/>',
+    extract: '<path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/><path d="M13 3l5 5v3M15 18h6M18.5 15.5 21 18l-2.5 2.5"/>',
+  };
+  // 「最近做的」裡每一筆是哪個工具做的（名字＋圖示）
+  const HIST = { edit: ['edit', ['編輯器', 'Editor']], convert: ['convert', ['轉檔', 'Convert']], compare: ['compare', ['比較兩版', 'Compare']],
+                 pdf2word: ['word', ['轉成 Word', 'To Word']], pdf2ppt: ['slides', ['轉成 PPT', 'To PowerPoint']], pdf2excel: ['sheet', ['轉成 Excel', 'To Excel']],
+                 pdf2img: ['image', ['轉成圖片', 'To images']], markdown: ['md', ['轉成 Markdown', 'To Markdown']], pdfa: ['archive', ['轉成 PDF/A', 'To PDF/A']],
+                 translate: ['lang', ['翻譯', 'Translate']], summarize: ['sum', ['摘要', 'Summary']], extract: ['extract', ['取出頁面', 'Extract']] };
+  const kindOf = f => f.ext === 'pdf' ? 'pdf' : IMGX.includes(f.ext) ? 'img' : HTMLX.includes(f.ext) ? 'html' : OFFX.includes(f.ext) ? 'office' : 'other';
+  function kind() {
+    if (!tf.length) return '';
+    const ks = new Set(tf.map(kindOf));
+    if (ks.size === 1) return [...ks][0];
+    return ks.has('pdf') ? 'mixed' : 'many';                  // PDF 跟其他檔混著＝要分開轉；其他檔混著＝各自轉成 PDF
+  }
+  const TO = [['docx', ['Word', 'Word']], ['pptx', ['PPT', 'PowerPoint']], ['xlsx', ['Excel', 'Excel']], ['img', ['圖片', 'Images']], ['md', ['Markdown', 'Markdown']], ['pdfa', ['PDF/A', 'PDF/A']]];
+  const TOOLS = [
+    { id: 'convert', i: 'convert', n: ['轉檔', 'Convert'], min: 0, max: 500, camera: 1,
+      v: () => kind() === 'pdf' ? tr('轉成 {t}', { t: L2((TO.find(x => x[0] === to.to) || TO[0])[1]) }) : tr('轉成 PDF'),
+      d: ['放 PDF：轉成 Word、PPT、Excel、圖片、Markdown、PDF/A。放 Word、PPT、Excel、圖片、網頁：轉成 PDF。手機拍的文件照片也可以。',
+          'Drop PDFs to get Word, PowerPoint, Excel, images, Markdown or PDF/A. Drop Word, PowerPoint, Excel, images or web pages to get a PDF. Phone photos of documents work too.'],
+      o: [{ k: 'to', t: 'seg', l: ['轉成', 'Into'], v: TO, d: 'docx', show: () => kind() === 'pdf' },
+          { k: 'mode', t: 'seg', l: ['要什麼', 'What'], v: [['pages', ['每頁一張', 'Each page']], ['images', ['取出裡面的圖', 'Embedded images']]], d: 'pages', show: o => kind() === 'pdf' && o.to === 'img' },
+          { k: 'format', t: 'seg', l: ['格式', 'Format'], v: [['jpg', ['JPG', 'JPG']], ['png', ['PNG', 'PNG']]], d: 'jpg', show: o => kind() === 'pdf' && o.to === 'img' && o.mode !== 'images' },
+          { k: 'dpi', t: 'seg', l: ['清晰度', 'Resolution'], v: [['100', ['螢幕', 'Screen']], ['150', ['清楚', 'Sharp']], ['300', ['印刷', 'Print']]], d: '150', show: o => kind() === 'pdf' && o.to === 'img' && o.mode !== 'images' },
+          { k: 'level', t: 'seg', l: ['版本', 'Level'], v: [['1', ['PDF/A-1b', 'PDF/A-1b']], ['2', ['PDF/A-2b', 'PDF/A-2b']], ['3', ['PDF/A-3b', 'PDF/A-3b']]], d: '2', show: o => kind() === 'pdf' && o.to === 'pdfa' },
+          { k: 'scan', t: 'check', l: ['這是拍文件的照片：自動找紙的邊、拉正、提亮、辨識文字', 'These are photos of documents: find the paper, straighten, brighten, recognize text'], show: () => kind() === 'img' },
+          { k: 'look', t: 'seg', l: ['顏色', 'Look'], v: [['color', ['彩色', 'Color']], ['gray', ['灰階', 'Grayscale']], ['bw', ['黑白', 'Black & white']]], d: 'color', show: o => kind() === 'img' && o.scan },
+          { k: 'paper', t: 'seg', l: ['紙張', 'Paper'], v: [['a4', ['A4', 'A4']], ['letter', ['Letter', 'Letter']], ['fit', ['照圖片大小', 'Fit image']]], d: 'a4', show: o => kind() === 'img' && !o.scan },
+          { k: 'each', t: 'check', l: ['每張存成一份', 'One PDF per image'], show: o => kind() === 'img' && !o.scan },
+          { k: 'url', t: 'text', l: ['或貼網址（網頁轉 PDF）', 'Or paste a web address'], ph: ['https://…', 'https://…'], show: () => !tf.length || kind() === 'html' }],
+      note: ['Word、PPT、Excel 用這台的 Pages／Keynote／Numbers 輸出，第一次 macOS 會問能不能讓 Slimly 控制它，按「好」一次就記住。', 'Office files are exported with Pages, Keynote or Numbers; the first time, macOS asks to let Slimly control them — allow it once.'] },
+    { id: 'compare', i: 'compare', n: ['比較兩版', 'Compare PDF'], v: ['比較', 'Compare'], min: 2, max: 2, slots: [['舊版', 'Old'], ['新版', 'New']],
+      d: ['找出兩版之間改了哪裡：畫面不同的地方框起來，文字的增刪列成一份報告。', 'Finds what changed: visual differences boxed, text changes listed in a report.'] },
+  ];
+
+  let tool = null, tf = [], to = {}, tres = null, tprog = null, tcam = false, optSig = '';
+
+  function openTool(id) {
+    if (!id) { openPage('pTools'); return; }
+    const t = TOOLS.find(x => x.id === id); if (!t) return;
+    tool = t; window.__tool = t;
+    tf = []; to = {}; tres = null; tprog = null; tcam = false;
+    (t.o || []).forEach(o => { if (o.d !== undefined) to[o.k] = o.t === 'check' ? !!o.d : String(o.d); });
+    openPage('pTool');
+    document.body.dataset.tool = 'idle';
+    send('toolTarget', { tool: id });
+    paintTool();
+    $('tBody').scrollTop = 0;
+  }
+  $('goEdit').onclick = () => send('openEditor', {});
+  $('goConvert').onclick = () => openTool('convert');
+  $('goCompare').onclick = () => openTool('compare');
+  $('tBack').onclick = () => { if (document.body.dataset.tool === 'run') { toast(tr('還在做，先按「停止」')); return; } openTool(''); };
+  $('tClose').onclick = () => { if (document.body.dataset.tool === 'run') { toast(tr('還在做，先按「停止」')); return; } closePages(); };
+  $('tPick').onclick = e => { e.stopPropagation(); if (tool) send('toolPick', { tool: tool.id }); };
+  $('tDrop').onclick = () => { if (tool) send('toolPick', { tool: tool.id }); };
+  $('tDrop').onkeydown = e => { if ((e.key === 'Enter' || e.key === ' ') && tool) { e.preventDefault(); send('toolPick', { tool: tool.id }); } };
+  $('tRun').onclick = () => runTool();
+
+  function dropHint(t) {
+    if (document.body.classList.contains('dropping')) return tr('放開就好');
+    if (t.slots) return tf.length ? tr('再放新版進來') : tr('先放舊版，再放新版');
+    return tr('把要轉的檔拖進來');
+  }
+  function kindIcon(name, dir) {
+    if (dir) return ICON.stack;
+    const e = String(name).split('.').pop().toLowerCase();
+    return e === 'pdf' ? ICON.pdf : IMGX.includes(e) ? svg(TI.image) : ['docx', 'doc', 'rtf', 'odt', 'pages', 'txt'].includes(e) ? svg(TI.word)
+         : ['pptx', 'ppt', 'key', 'odp'].includes(e) ? svg(TI.slides) : ['xlsx', 'xls', 'numbers', 'csv', 'ods'].includes(e) ? svg(TI.sheet) : e === 'md' ? svg(TI.md) : HTMLX.includes(e) ? svg(TI.web) : ICON.pdf;
+  }
+  const verb = t => typeof t.v === 'function' ? t.v() : L2(t.v);
+
+  function paintTool() {
+    const t = tool; if (!t) return;
+    $('tName').textContent = L2(t.n);
+    $('tDesc').textContent = L2(t.d);
+    $('tDrop').classList.toggle('hide', (t.max <= 1 && tf.length >= 1) || (!!t.slots && tf.length >= 2));
+    $('tDropHint').textContent = dropHint(t);
+    paintFiles(); paintUnder(); paintOpts(); paintAct(); paintRes();
+  }
+  function paintFiles() {
+    const t = tool, el = $('tFiles');
+    el.innerHTML = tf.map((f, i) => {
+      const warn = f.locked ? tr('有密碼：先用編輯器打開、輸入密碼') : f.damaged ? tr('打不開：用編輯器打開會試著修復') : '';
+      const sub = warn || [f.pages ? tr('{p} 頁', { p: f.pages }) : '', size(f.bytes)].filter(Boolean).join('・');
+      const lab = t.slots ? L2(t.slots[Math.min(i, 1)]) + '：' : '';
+      return `<div class="fr${warn ? ' warn' : ''}" data-i="${i}"><span class="tile">${kindIcon(f.name)}</span>` +
+             `<span class="l"><div class="t-body one">${esc(lab + f.name)}</div><div class="t-cap one">${esc(sub)}</div></span><button class="x" data-rm="${i}" aria-label="${esc(tr('拿掉'))}">${ICON.x}</button></div>`;
+    }).join('');
+    el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { tf.splice(+b.dataset.rm, 1); filesChanged(); });
+  }
+  function filesChanged() { tresReset(); paintTool(); }
+  function tresReset() {
+    if (document.body.dataset.tool === 'run') return;
+    if (tres) { tres = null; paintRes(); $('tAct').classList.remove('hide'); }
+  }
+  function paintUnder() {
+    const t = tool, U = [];
+    if (t.camera && (!tf.length || kind() === 'img')) U.push(['tCam', tr('或用 iPhone 直接拍（接力相機）')]);
+    if (t.slots && tf.length === 2) U.push(['tSwap', tr('舊版、新版對調')]);
+    const el = $('tUnder');
+    el.innerHTML = U.map(([id, s]) => `<button class="link" id="${id}">${esc(s)}</button>`).join('');
+    el.classList.toggle('hide', !U.length);
+    if ($('tCam')) $('tCam').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); send('scanDevice', { rect: { x: r.left, y: r.top, w: r.width, h: r.height } }); };
+    if ($('tSwap')) $('tSwap').onclick = () => { tf.reverse(); tresReset(); paintTool(); };
+  }
+
+  // ── 選項 ──
+  function visSig() { return (tool.o || []).map(o => (!o.show || o.show(to)) ? 1 : 0).join(''); }
+  function paintOpts() {
+    const el = $('tOpts');
+    el.innerHTML = (tool.o || []).filter(o => !o.show || o.show(to)).map(optHTML).join('');
+    optSig = visSig();
+    bindOpts();
+  }
+  function optHTML(o) {
+    const lab = `<span class="t-cap">${esc(L2(o.l))}</span>`, v = to[o.k];
+    switch (o.t) {
+      case 'seg': return `<div class="op">${lab}<span class="seg" data-k="${o.k}">${o.v.map(([val, n]) => `<button data-v="${esc(val)}" class="${String(v ?? '') === val ? 'on' : ''}">${esc(L2(n))}</button>`).join('')}</span></div>`;
+      case 'check': return `<div class="op"><button class="chk${v ? ' on' : ''}" data-chk="${o.k}"><span class="dot"></span>${esc(L2(o.l))}</button></div>`;
+      case 'text': return `<div class="op">${lab}<input class="txt-in" data-k="${o.k}" value="${esc(v ?? '')}" placeholder="${esc(L2(o.ph))}" spellcheck="false"></div>`;
+    }
+    return '';
+  }
+  function bindOpts() {
+    const el = $('tOpts');
+    const redo = () => { tresReset(); paintOpts(); paintAct(); };
+    el.querySelectorAll('.seg[data-k]').forEach(s => s.querySelectorAll('button').forEach(b => b.onclick = () => { to[s.dataset.k] = b.dataset.v; redo(); }));
+    el.querySelectorAll('[data-chk]').forEach(b => b.onclick = () => { to[b.dataset.chk] = !to[b.dataset.chk]; redo(); });
+    el.querySelectorAll('input[data-k]').forEach(i => i.oninput = () => {
+      const k = i.dataset.k; to[k] = i.value; tresReset();
+      if (visSig() !== optSig) { const pos = i.selectionStart; paintOpts(); const n = el.querySelector(`[data-k="${k}"]`); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } }
+      paintAct();
+    });
+  }
+
+  // ── 做 ──
+  function missing() {
+    const t = tool;
+    if (t.id === 'convert') {
+      if (!tf.length && !String(to.url || '').trim()) return tr('放要轉的檔，或貼網址');
+      if (kind() === 'mixed') return tr('PDF 跟其他檔分開轉：PDF 是轉出去，其他檔是轉成 PDF');
+      if (kind() === 'other') return tr('這種檔轉不了');
+    } else if (tf.length < t.min) return t.slots ? (tf.length ? tr('再放新版進來') : tr('先放兩份：舊版、新版')) : tr('先放檔案進來');
+    const bad = tf.find(f => f.locked || f.damaged);
+    if (bad) return bad.locked ? tr('「{f}」有密碼：先用編輯器打開、輸入密碼', { f: bad.name }) : tr('「{f}」打不開：用編輯器打開會試著修復', { f: bad.name });
+    return '';
+  }
+  function paintAct() {
+    const t = tool; if (!t) return;
+    const run = document.body.dataset.tool === 'run';
+    const why = run ? '' : missing();
+    if (!run) document.body.dataset.tool = tres ? (tres.ok ? 'done' : 'err') : why ? 'idle' : 'ready';
+    const b = $('tRun');
+    b.textContent = run ? tr('停止') : verb(t);
+    b.disabled = !run && !!why;
+    $('tAct').classList.toggle('hide', !run && !!tres?.ok);
+    $('tHint').textContent = run ? '' : (why || (t.id === 'convert' && ['office', 'many'].includes(kind()) ? L2(t.note) : ''));
+  }
+  function runTool() {
+    if (document.body.dataset.tool === 'run') { send('toolStop'); return; }
+    const why = missing(); if (why) { toast(why); return; }
+    const opts = {};
+    (tool.o || []).forEach(o => { if (o.show && !o.show(to)) return; const v = to[o.k]; if (v === undefined || v === '' || v === null) return; opts[o.k] = v; });
+    if (tcam) { opts.camera = true; opts.scan = true; }
+    send('toolRun', { tool: tool.id, files: tf.map(f => f.path), options: opts });
+  }
+
+  // ── 結果 ──
+  function paintRes() {
+    const run = document.body.dataset.tool === 'run', r = tres;
+    $('tRes').classList.toggle('hide', !run && !r);
+    $('tBar').classList.toggle('hide', !run);
+    $('tText').classList.add('hide'); $('tOut').innerHTML = ''; $('tActs').classList.add('hide');
+    if (run) {
+      $('tState').textContent = tr('正在做');
+      $('tSub').textContent = tprog?.text || '';
+      const f = tprog?.frac || 0;
+      $('tBar').classList.toggle('busy', !(f > 0));
+      $('tBar').style.setProperty('--p', f);
+      return;
+    }
+    if (!r) { $('tState').textContent = ''; $('tSub').textContent = ''; return; }
+    if (!r.ok) {
+      $('tState').textContent = r.stopped ? tr('已停止') : tr('沒做成');
+      $('tSub').innerHTML = (r.stopped ? '' : esc(r.error || '') + '<br>') + tr('原檔都沒動。');
+      return;
+    }
+    const outs = r.outputs || [];
+    $('tState').textContent = outs.length > 1 ? tr('好了，{n} 個檔', { n: outs.length }) : tr('好了');
+    $('tSub').innerHTML = (r.notes || []).map(esc).join('<br>');
+    $('tOut').innerHTML = outs.slice(0, 50).map((o, i) => `<div class="fr" data-o="${i}"><span class="tile">${kindIcon(o.name, o.dir)}</span><span class="l"><div class="t-body one">${esc(o.name)}</div><div class="t-cap one">${esc(size(o.bytes))}</div></span></div>`).join('')
+      + (outs.length > 50 ? `<div class="t-cap">${esc(tr('還有 {n} 個', { n: outs.length - 50 }))}</div>` : '');
+    $('tOut').querySelectorAll('[data-o]').forEach(x => { const o = outs[+x.dataset.o]; x.onclick = () => send('reveal', { path: o.path }); x.onmousedown = () => send('dragArm', { files: [o.path] }); x.title = tr('拖出去就是檔案'); });
+    const files = outs.map(o => o.path);
+    const A = [[files.length > 1 ? '在 Finder 顯示全部' : '在 Finder 顯示', () => send('revealFiles', { files }), true]];
+    if (outs.length === 1 && outs[0].name.toLowerCase().endsWith('.pdf')) A.push(['用編輯器打開', () => send('openEditor', { paths: [outs[0].path] })]);
+    else if (outs.length === 1) A.push([outs[0].dir ? '打開資料夾' : '打開看看', () => send('open', { path: outs[0].path })]);
+    else A.push(['分享…', e => share(e, files)]);
+    A.push(['再做一份', () => { tf = []; tres = null; tcam = false; filesChanged(); $('tBody').scrollTop = 0; }]);
+    actsIn($('tActs'), A.slice(0, 3));
+  }
+
+  // ── 外觀 ──
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const applySys = () => document.documentElement.classList.toggle('sysdark', mq.matches);
+  mq.addEventListener?.('change', applySys); applySys();
+
+  // ── Swift → JS ──
+  window.appEvent = ev => {
+    switch (ev.type) {
+      case 'prefs': {
+        const langChanged = (ev.lang !== prefs.lang);
+        prefs = { ...prefs, ...ev };
+        const want = ev.lang === 'system' ? ((navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en') : ev.lang;
+        if (want !== LANG || langChanged) { LANG = want; translate(); }
+        paintSettings(); paint();
+        if ((ev.forceWizard || !ev.wizardDone) && !window.__wizOnce) { window.__wizOnce = true; openWizard(ev.wizardPage || 0); }
+        else if (!$('wiz').classList.contains('hide')) paintWizard();
+        break;
+      }
+      case 'theme':
+        if (ev.mode === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = ev.mode;
+        prefs.theme = ev.mode; paintSettings();
+        break;
+      case 'hover': document.body.classList.toggle('dropping', !!ev.on); paint(); break;
+      case 'reading': document.body.classList.add('reading'); paint(); break;
+      case 'staged': {
+        document.body.classList.remove('reading');
+        if (ev.added > 0 && $('pTools').classList.contains('on')) closePages();
+        staged = ev.items || [];
+        if (!(staged.length === 1 && est && est.id === staged[0].id)) est = null;
+        const sk = ev.skipped || [];
+        if (ev.added > 0 || staged.length) { if (mode === 'done' || mode === 'parts') { mode = 'idle'; done = null; parts = null; } explain = null; }
+        if (ev.added === 0 && sk.length && !staged.length) {
+          if (mode === 'done' || mode === 'parts') { mode = 'idle'; done = null; parts = null; }
+          if (sk.every(s => s.code === 'duplicate')) toast(tr('這份已經在清單裡了'));
+          else explain = { ...sk.find(s => s.code !== 'duplicate'), more: sk.slice(1) };
+        } else if (sk.length) {
+          toast(sk.every(s => s.code === 'duplicate') ? tr('這份已經在清單裡了') : skipSummary(sk));
+        }
+        paint();
+        break;
+      }
+      case 'estimate': {
+        if (ev.state === 'start') { const it = staged.find(x => x.id === ev.id) || {}; est = { id: ev.id, state: 'run', bytes: ev.bytes, levels: Array(6).fill(null), fmt: it.fmt || '', kind: it.kind || 'pdf' }; }
+        else if (!est || est.id !== ev.id) break;
+        else if (ev.state === 'level') est.levels[ev.i] = ev.bytes;
+        else if (ev.state === 'done') Object.assign(est, { state: 'done', levels: (ev.levels || []).map(l => l.bytes), exact: !!ev.exact, sample: ev.sample || [] });
+        else est.state = 'failed';
+        if (mode !== 'run') paint();
+        break;
+      }
+      case 'watch': {
+        watch = ev; paintWatchChip(); paintWatch();
+        break;
+      }
+      case 'compareReady': {
+        if (!cmp || cmp.id !== ev.id || cmp.state !== 'load') break;          // 已經關掉、取消
+        if (!ev.ok) { toast(tr('對照不了：找不到壓前或壓後的檔')); closeCompare('closed'); break; }
+        Object.assign(cmp, { token: ev.token, pages: ev.pages || 1, aspect: ev.aspect || 1.414 });
+        cmpLayout(); cmpLoad(true);
+        break;
+      }
+      case 'queued':
+        document.body.classList.remove('reading');
+        if (ev.added > 0) toast(tr('加入排隊：還有 {n} 份', { n: ev.left + 1 }));
+        else if ((ev.skipped || []).length) toast((ev.skipped || []).every(s => s.code === 'duplicate') ? tr('這份已經在清單裡了') : skipSummary(ev.skipped));
+        if (prog) { prog.total = (prog.total || 0) + ev.added; total = prog.total; }
+        paint();
+        break;
+      case 'signed': document.body.classList.remove('reading'); askNames = ev.names || []; askKinds = ev.kinds || []; mode = 'ask'; paint(); break;
+      case 'nudge': nudge(); toast(tr('先放一份 PDF 或照片進來，或按「選擇檔案」。')); break;
+      case 'start': mode = 'run'; finished = []; prog = null; total = ev.total; done = null; explain = null; showDetail = false; prog2(0); paint(); break;
+      case 'progress': prog = ev; total = ev.total; if (mode === 'run') paint(); break;
+      case 'item': finished.push(ev.item); if (mode === 'run') paint(); break;
+      case 'done': mode = 'done'; done = ev; staged = ev.remaining || []; prog = null; prog2(1); paint(); break;
+      case 'splitting': mode = 'splitting'; split = ev; paint(); break;
+      case 'split': mode = 'parts'; parts = ev; split = null; prog2(1); paint(); break;
+      case 'history': {
+        const h = ev.items || [];
+        $('histList').innerHTML = h.length ? h.map(x => { const t = x.tool && HIST[x.tool];
+          const what = t ? esc(L2(t[1])) : `${size(x.before)} → ${size(x.after)}`;
+          return `<button class="row" data-out="${esc(x.out)}" ${x.exists ? '' : 'disabled'}><span class="tile">${t ? svg(TI[t[0]]) : ICON.pdf}</span><div class="l"><div class="t-body one">${esc(x.name)}</div><div class="t-cap">${what}・${new Date(x.at * 1000).toLocaleDateString(LANG === 'en' ? 'en' : 'zh-TW')}${x.exists ? '' : '・' + esc(tr('原檔已不在'))}</div></div></button>`; }).join('')
+                                          : `<div class="t-body" style="padding:16px 0">${esc(tr('還沒有壓過東西。'))}</div>`;
+        $('histList').querySelectorAll('.row').forEach(r => r.onclick = () => send('reveal', { path: r.dataset.out }));
+        break;
+      }
+      case 'page': if (ev.name === 'settings') { paintSettings(); openPage('pSettings'); } break;
+      // ── 所有工具 ──
+      case 'openTool': openTool(ev.id || ''); break;
+      case 'toolFiles': {
+        if (!tool || ev.tool !== tool.id) break;
+        const fresh = (ev.items || []).filter(it => !tf.some(f => f.path === it.path));
+        if (ev.camera) { tcam = true; to.scan = true; }
+        if (tool.max <= 1) { if (fresh.length) tf = fresh.slice(-1); }
+        else if (tool.slots) tf = tf.concat(fresh).slice(-2);
+        else { tf = tf.concat(fresh); if (tf.length > tool.max) { toast(tr('最多 {n} 份', { n: tool.max })); tf = tf.slice(0, tool.max); } }
+        const sk = ev.skipped || [];
+        if (sk.length) toast(tr('略過 {n} 個：{w}', { n: sk.length, w: sk.slice(0, 3).map(x => x.name).join('、') }));
+        else if ((ev.items || []).length && !fresh.length) toast(tr('這份已經在清單裡了'));
+        filesChanged();
+        break;
+      }
+      case 'toolStart': if (tool && ev.tool === tool.id) { document.body.dataset.tool = 'run'; tres = null; tprog = null; paintTool(); } break;
+      case 'toolProgress': if (tool && ev.tool === tool.id && document.body.dataset.tool === 'run') { tprog = ev; paintRes(); } break;
+      case 'toolDone':
+        if (!tool || ev.tool !== tool.id) break;
+        tres = ev; tprog = null; document.body.dataset.tool = ev.ok ? 'done' : 'err';
+        paintTool();
+        setTimeout(() => $('tRes').scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 30);
+        break;
+
+    }
+  };
+
+  translate();
+  paint();
+  send('ready');
+})();
+</script>

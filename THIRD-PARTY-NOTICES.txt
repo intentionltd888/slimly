@@ -1,0 +1,75 @@
+Slimly 內含下列開源元件（散布合規聲明）
+Slimly includes the following open-source components.
+
+────────────────────────────────────────────────────────────
+Ghostscript 10.08.0 — GNU Affero General Public License v3.0 (AGPL-3.0)
+────────────────────────────────────────────────────────────
+Slimly 的壓縮引擎（Contents/Resources/bin/gs）是未經修改的 Ghostscript，由 Slimly 以獨立程式（子程序）呼叫，
+兩者之間只透過命令列參數與檔案溝通。
+The compression engine (Contents/Resources/bin/gs) is an unmodified build of Ghostscript,
+run by Slimly as a separate program; the two communicate only through command-line arguments and files.
+
+  Copyright (C) 2001-2026 Artifex Software, Inc. All rights reserved.
+  Source (Corresponding Source): https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/tag/gs10080
+    ghostscript-10.08.0.tar.xz
+    SHA-512 8006e2a32d03759a905b9548bdd83d4563173041006750e17e428b9eea24ad519aa4452ceecd7c073d3c420a68bf1b07ccc9e0533b1a05935f6b39ea8d9ce875
+  Build: scripts/vendor-fetch.sh in Slimly's source (configure flags listed there; target macOS 12, arm64).
+  License text: https://www.gnu.org/licenses/agpl-3.0.html
+  Ghostscript bundles its own copies of libjpeg (IJG), libpng, zlib, FreeType, Little CMS (lcms2mt),
+  OpenJPEG, jbig2dec, libtiff and the URW++ base 35 fonts, each under its own license, listed in the
+  source archive above (see LICENSE and the per-directory notices).
+
+────────────────────────────────────────────────────────────
+MuPDF 1.28.5 — GNU Affero General Public License v3.0 (AGPL-3.0)
+────────────────────────────────────────────────────────────
+Slimly 的編輯器引擎（Contents/Resources/bin/mutool）是未經修改的 MuPDF 命令列工具，由 Slimly 以獨立程式（子程序）呼叫，
+執行 Slimly 自己的腳本（Contents/Resources/mu/slimly-mu.js）；兩者之間只透過命令列參數與檔案溝通。
+The editor engine (Contents/Resources/bin/mutool) is an unmodified build of the MuPDF command-line tool,
+run by Slimly as a separate program with Slimly's own script (Contents/Resources/mu/slimly-mu.js);
+the two communicate only through command-line arguments and files.
+
+  Copyright (C) 2004-2026 Artifex Software, Inc. All rights reserved.
+  Source (Corresponding Source): https://casper.mupdf.com/downloads/archive/mupdf-1.28.5-source.tar.gz
+    SHA-256 98a5c10cda20c3992cdf76ff6b2a1149c32bd79cc796d3f703230b1185b7e934
+  Build: scripts/vendor-mupdf.sh in Slimly's source (make flags listed there; target macOS 12, arm64).
+  License text: https://www.gnu.org/licenses/agpl-3.0.html
+  MuPDF bundles its own copies of FreeType, HarfBuzz, jbig2dec, libjpeg, Little CMS (lcms2mt), OpenJPEG,
+  zlib, gumbo-parser, MuJS, extract and the fonts it embeds (URW base 14, Droid Sans Fallback, Noto),
+  each under its own license, listed in the source archive above (see COPYING and thirdparty/).
+
+────────────────────────────────────────────────────────────
+Montserrat — SIL Open Font License 1.1
+────────────────────────────────────────────────────────────
+The Slimly wordmark is drawn from the outlines of Montserrat ExtraBold.
+Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat).
+Licensed under the SIL Open Font License, Version 1.1 — https://openfontlicense.org
+
+────────────────────────────────────────────────────────────
+Uiverse.io elements (interface styling) — MIT License
+────────────────────────────────────────────────────────────
+Slimly's interface (shared with its sibling app Fully) adapts the styling of three community elements
+from Uiverse.io (source mirror: https://github.com/uiverse-io/galaxy):
+
+  · "strong-zebra-87" by adamgiebl        — raised neumorphic surface
+  · "tricky-turtle-16" by Smit-Prajapati  — concentric ripple loader
+  · "neat-turkey-32" by AmIt-DasIT        — raised + inset radio state
+
+Copyright (c) Uiverse.io and the respective element authors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

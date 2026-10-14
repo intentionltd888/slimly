@@ -1,0 +1,14 @@
+# 自帶引擎的執行檔：不進 git（用 scripts/vendor-fetch.sh、vendor-mupdf.sh 從官方原始碼編）
+vendor/
+
+# 建置產物
+build/
+
+# 備份與系統雜物
+*.bak
+*.bak-*
+.DS_Store
+__pycache__/
+
+# 公證用的 notarytool 鑰匙圈 profile 名（每台機器自己的，見 scripts/notarize.sh）
+.notary-profile
